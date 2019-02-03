@@ -1,0 +1,27 @@
+#include <ntifs.h>
+
+#define DEVICE_NAME	L"\\Device\\DemoDriver"
+#define SYMBOLIC_NAME	L"\\??\\DemoDriver"
+
+#define MAX_PATH	260
+
+#define IOCTL_ENUM_PROCESS_APC  \
+	(ULONG)CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, \
+	METHOD_BUFFERED, FILE_READ_DATA | FILE_WRITE_DATA)
+
+#define IOCTL_INJECT_DLL  \
+	(ULONG)CTL_CODE(FILE_DEVICE_UNKNOWN, 0x802, \
+	METHOD_BUFFERED, FILE_READ_DATA | FILE_WRITE_DATA)
+
+#define PrintLog(format, ...)\
+	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, format, __VA_ARGS__)	
+
+#define DPRINT(format, ...)\
+	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "[ %d-%s ]: ", __LINE__, __FUNCTION__); \
+	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, format, __VA_ARGS__)	
+
+typedef struct _INJECT_INFO {
+	ULONG Pid;
+	ULONG Type;
+	WCHAR Dllpath[MAX_PATH];
+}INJECT_INFO, *PINJECT_INFO;
