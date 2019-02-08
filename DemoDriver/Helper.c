@@ -1,5 +1,7 @@
 #include <ntifs.h>
 #include <ntimage.h>
+#include <ntstrsafe.h>
+#include "DemoDriver.h"
 #include "Internals.h"
 
 NTSTATUS GetProcessIdByName(IN PWSTR ProcessName, OUT PULONG Pid) {

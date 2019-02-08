@@ -29,7 +29,26 @@ PINJECT_BUFFER GetWow64Code(
 	IN PVOID pLdrLoadDll,
 	IN PUNICODE_STRING pPath
 );
+// Kernel routine for inject apc
+VOID KernelApcInjectCallback(
+	PKAPC Apc,
+	PKNORMAL_ROUTINE* NormalRoutine,
+	PVOID* NormalContext,
+	PVOID* SystemArgument1,
+	PVOID* SystemArgument2
+);
+// Kernel routine for prepare apc
+VOID KernelApcPrepareCallback(
+	PKAPC Apc,
+	PKNORMAL_ROUTINE* NormalRoutine,
+	PVOID* NormalContext,
+	PVOID* SystemArgument1,
+	PVOID* SystemArgument2
+);
+NTSTATUS LookupSuitableThread(PEPROCESS Process, PETHREAD* pThread);
 
+
+#define DLL_PATH L"C:\\Users\\MOUKA\\Desktop\\TestDll.dll"
 
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text (INIT, DriverEntry)
@@ -74,7 +93,16 @@ NTSTATUS DriverEntry(
 	deviceObject->Flags |= DO_BUFFERED_IO;
 	//DriverObject->DeviceObject = deviceObject;
 
-	EnumProcessApc(L"winlogon.exe");
+	//
+	// TEST
+	//
+
+	//EnumProcessApc(L"winlogon.exe");
+	INJECT_INFO injectInfo = { 0 };
+	injectInfo.Pid = 1640;
+	RtlStringCbCopyW(injectInfo.Dllpath, MAX_PATH, DLL_PATH);
+	
+	InjectByApc(&injectInfo);
 
 	return STATUS_SUCCESS;
 }
@@ -141,8 +169,7 @@ NTSTATUS DriverDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
 }
 
 NTSTATUS EnumProcessApc(PCWSTR ProcessName) {
-	HANDLE processHandle;
-	PEPROCESS process;
+
 	PETHREAD currentThread;
 	ULONG pid;
 
@@ -174,7 +201,7 @@ NTSTATUS EnumProcessApc(PCWSTR ProcessName) {
 			// Got it! 
 			if (RtlCompareUnicodeString(&uProcessName, &pProcessInfo->ImageName, TRUE) == 0) {
 				DbgBreakPoint();
-				pid = (ULONG)pProcessInfo->UniqueProcessId;
+				pid = HandleToUlong(pProcessInfo->UniqueProcessId);
 				break;
 			}
 
@@ -307,10 +334,12 @@ NTSTATUS InjectDll(PINJECT_INFO InjectInfo) {
 }
 
 UNICODE_STRING uNtdll = RTL_CONSTANT_STRING(L"NTDLL.DLL");
+#define CALL_COMPLETE   0xC0371E7E
 
 NTSTATUS InjectByApc(PINJECT_INFO InjectInfo) {
 	NTSTATUS status = STATUS_SUCCESS;
-	PEPROCESS pProcess;
+	PEPROCESS pProcess = NULL;
+	PETHREAD pTargetThread = NULL;
 	KAPC_STATE oldApc = { 0 };
 
 	WCHAR dllpath[MAX_PATH];
@@ -322,10 +351,14 @@ NTSTATUS InjectByApc(PINJECT_INFO InjectInfo) {
 	SIZE_T size = 0;
 	PINJECT_BUFFER pInjectBuffer = NULL;
 
+	PKAPC pPrepareApc = NULL;
+	PKAPC pInjectApc = NULL;
+
 	status = PsLookupProcessByProcessId(ULongToHandle(InjectInfo->Pid), &pProcess);
 	if (!NT_SUCCESS(status))
 		return status;
 
+	DbgBreakPoint();
 	__try {
 		isWow64 = (PsGetProcessWow64Process(pProcess) != NULL) ? TRUE : FALSE;
 		if (isWow64)
@@ -357,19 +390,82 @@ NTSTATUS InjectByApc(PINJECT_INFO InjectInfo) {
 			__leave;
 		}
 
-		KeUnstackDetachProcess(&oldApc);
-		RtlSecureZeroMemory(&oldApc, sizeof(KAPC_STATE));
+		//KeUnstackDetachProcess(&oldApc);
+		//RtlSecureZeroMemory(&oldApc, sizeof(KAPC_STATE));
+		DbgBreakPoint();
 
 		pInjectBuffer = isWow64 ? GetWow64Code(pProcess, pLdrLoadDll, &uDllpath) : GetNativeCode(pProcess, pLdrLoadDll, &uDllpath);
 		if (!pInjectBuffer) {
 			status = STATUS_UNSUCCESSFUL;
 			__leave;
 		}
+
+		status = LookupSuitableThread(pProcess, &pTargetThread);
+		if (!NT_SUCCESS(status))
+			__leave;
+
+		// Queue user apc to target thread
+		pInjectApc = ExAllocatePoolWithTag(NonPagedPool, sizeof(KAPC), 'tag');
+		pPrepareApc = ExAllocatePoolWithTag(NonPagedPool, sizeof(KAPC), 'tag');
+		if (!pInjectApc || !pPrepareApc) {
+			status = STATUS_INSUFFICIENT_RESOURCES;
+			__leave;
+		}
+
+		// Initailize apc
+		KeInitializeApc(
+			pInjectApc,
+			(PKTHREAD)pTargetThread,
+			OriginalApcEnvironment, &KernelApcInjectCallback,
+			NULL, (PKNORMAL_ROUTINE)(ULONG_PTR)pInjectBuffer->code, UserMode, NULL);
+
+		KeInitializeApc(
+			pPrepareApc, (PKTHREAD)pTargetThread,
+			OriginalApcEnvironment, &KernelApcPrepareCallback,
+			NULL, NULL, KernelMode, NULL);
+
+		// Insert apc
+		KeInsertQueueApc(pInjectApc, NULL, NULL, 0);
+		KeInsertQueueApc(pPrepareApc, NULL, NULL, 0);
+
+		// Wait for completion
+		LARGE_INTEGER interval = { 0 };
+		interval.QuadPart = -(5LL * 10 * 1000);
+
+		for (ULONG i = 0; i < 10000; i++)
+		{
+			if (CheckProcessTermination(PsGetCurrentProcess()) || PsIsThreadTerminating(pTargetThread))
+			{
+				status = STATUS_PROCESS_IS_TERMINATING;
+				break;
+			}
+
+			if (pInjectBuffer->complete == CALL_COMPLETE)
+				break;
+
+			if (!NT_SUCCESS(status = KeDelayExecutionThread(KernelMode, FALSE, &interval)))
+				break;
+		}
+
+		if (NT_SUCCESS(status))
+			status = pInjectBuffer->status;
 	}
 	__finally {
+		/*if (pPrepareApc)
+			ExFr eePoolWithTag(pPrepareApc, 'tag');
+
+		if (pInjectApc)
+			ExFreePoolWithTag(pInjectApc, 'tag');*/
+
+		if (pInjectBuffer)
+			ZwFreeVirtualMemory(ZwCurrentProcess(), &pInjectBuffer, &size, MEM_RELEASE);
+
 		// oldApc not zeroed, so target process is still attached
 		if (oldApc.ApcListHead[0].Flink)
 			KeUnstackDetachProcess(&oldApc);
+
+		if (pTargetThread)
+			ObDereferenceObject(pTargetThread);
 
 		if (pProcess)
 			ObDereferenceObject(pProcess);
@@ -431,8 +527,10 @@ PINJECT_BUFFER GetWow64Code(
 
 		return pBuffer;
 	}
+	
+	if (ProcessHandle)
+		ZwClose(ProcessHandle);
 
-	UNREFERENCED_PARAMETER(pPath);
 	return NULL;
 
 }
@@ -494,6 +592,112 @@ PINJECT_BUFFER GetNativeCode(
 		return pBuffer;
 	}
 
-	UNREFERENCED_PARAMETER(pPath);
+	if (ProcessHandle)
+		ZwClose(ProcessHandle);
+
 	return NULL;
+}
+
+NTSTATUS LookupSuitableThread(PEPROCESS Process, PETHREAD* pThread) {
+	HANDLE pid;
+	HANDLE currentTid;
+	ULONG bytes;
+	NTSTATUS status = STATUS_SUCCESS;
+	PSYSTEM_PROCESS_INFO pProcessInfo = NULL;
+	PVOID pSavedProcessInfo = NULL;
+
+	pid = PsGetProcessId(Process);
+	currentTid = PsGetCurrentThreadId();
+	__try {
+		status = ZwQuerySystemInformation(SystemProcessInformation, 0, bytes, &bytes);
+
+		pSavedProcessInfo = (PSYSTEM_PROCESS_INFO)ExAllocatePoolWithTag(NonPagedPool, bytes, 'tag');
+		if (!pSavedProcessInfo) {
+			status = STATUS_INSUFFICIENT_RESOURCES;
+			__leave;
+		}
+		pProcessInfo = pSavedProcessInfo;
+		RtlZeroMemory(pProcessInfo, bytes);
+
+		status = ZwQuerySystemInformation(SystemProcessInformation, pProcessInfo, bytes, &bytes);
+		if (!NT_SUCCESS(status))	__leave;
+
+		status = STATUS_NOT_FOUND;
+		for (;;)
+		{
+			if (pProcessInfo->UniqueProcessId == pid)
+			{
+				status = STATUS_SUCCESS;
+				break;
+			}
+			else if (pProcessInfo->NextEntryOffset)
+				pProcessInfo = (PSYSTEM_PROCESS_INFO)((PUCHAR)pProcessInfo + pProcessInfo->NextEntryOffset);
+			else
+				break;
+		}
+
+		if (!NT_SUCCESS(status))
+			__leave;
+
+		status = STATUS_NOT_FOUND;
+		for (ULONG i = 0; i < pProcessInfo->NumberOfThreads; i++)
+		{
+			// Skip current thread
+			if (pProcessInfo->Threads[i].WaitReason == Suspended ||
+				pProcessInfo->Threads[i].ThreadState == 5 ||
+				pProcessInfo->Threads[i].ClientId.UniqueThread == currentTid)
+			{
+				continue;
+			}
+
+			DbgBreakPoint();
+			status = PsLookupThreadByThreadId(pProcessInfo->Threads[i].ClientId.UniqueThread, pThread);
+			
+			break;
+		}
+
+	}
+	__finally {
+		if (pSavedProcessInfo)
+			ExFreePoolWithTag(pSavedProcessInfo, 'tag');
+	}
+
+	return status;
+}
+
+// Kernel routine for inject apc
+VOID KernelApcInjectCallback(
+	PKAPC Apc,
+	PKNORMAL_ROUTINE* NormalRoutine,
+	PVOID* NormalContext,
+	PVOID* SystemArgument1,
+	PVOID* SystemArgument2
+)
+{
+	UNREFERENCED_PARAMETER(SystemArgument1);
+	UNREFERENCED_PARAMETER(SystemArgument2);
+
+	// Skip execution
+	if (PsIsThreadTerminating(PsGetCurrentThread()))
+		*NormalRoutine = NULL;
+
+	// Fix Wow64 APC
+	if (PsGetCurrentProcessWow64Process() != NULL)
+		PsWrapApcWow64Thread(NormalContext, (PVOID*)NormalRoutine);
+
+	ExFreePoolWithTag(Apc, 'tag');
+}
+
+// Kernel routine for prepare apc
+VOID KernelApcPrepareCallback(
+	PKAPC Apc,
+	PKNORMAL_ROUTINE* NormalRoutine,
+	PVOID* NormalContext,
+	PVOID* SystemArgument1,
+	PVOID* SystemArgument2
+)
+{
+	// Alert current thread
+	KeTestAlertThread(UserMode);
+	ExFreePoolWithTag(Apc, 'tag');
 }

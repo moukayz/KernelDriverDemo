@@ -23,7 +23,7 @@ typedef enum _SYSTEM_INFORMATION_CLASS
 	SystemObjectInformation = 0x11,
 	SystemPageFileInformation = 0x12,
 	SystemVdmInstemulInformation = 0x13,
-	SystemVdmBopInformation = 0x14,
+	SystemVdmBopProcessInformation = 0x14,
 	SystemFileCacheInformation = 0x15,
 	SystemPoolTagInformation = 0x16,
 	SystemInterruptInformation = 0x17,
@@ -110,7 +110,7 @@ typedef enum _SYSTEM_INFORMATION_CLASS
 	SystemProcessorMicrocodeUpdateInformation = 0x68,
 	SystemProcessorBrandString = 0x69,
 	SystemVirtualAddressInformation = 0x6a,
-	SystemLogicalProcessorAndGroupInformation = 0x6b,
+	SystemLogicalProcessorAndGroupProcessInformation = 0x6b,
 	SystemProcessorCycleTimeInformation = 0x6c,
 	SystemStoreInformation = 0x6d,
 	SystemRegistryAppendString = 0x6e,
@@ -382,6 +382,16 @@ KeInsertQueueApc(
 	PVOID SystemArgument2,
 	KPRIORITY Increment
 );
+
+NTKERNELAPI
+PPEB
+NTAPI
+PsGetProcessPeb(IN PEPROCESS Process);
+
+NTKERNELAPI
+PVOID
+NTAPI
+PsGetThreadTeb(IN PETHREAD Thread);
 
 NTKERNELAPI
 PVOID
