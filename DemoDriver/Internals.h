@@ -216,6 +216,123 @@ typedef struct _SYSTEM_PROCESS_INFO
 	SYSTEM_THREAD_INFORMATION Threads[1];
 }SYSTEM_PROCESS_INFO, *PSYSTEM_PROCESS_INFO;
 
+typedef struct _PEB_LDR_DATA
+{
+	ULONG Length;
+	UCHAR Initialized;
+	PVOID SsHandle;
+	LIST_ENTRY InLoadOrderModuleList;
+	LIST_ENTRY InMemoryOrderModuleList;
+	LIST_ENTRY InInitializationOrderModuleList;
+} PEB_LDR_DATA, *PPEB_LDR_DATA;
+
+typedef struct _LDR_DATA_TABLE_ENTRY
+{
+	LIST_ENTRY InLoadOrderLinks;
+	LIST_ENTRY InMemoryOrderLinks;
+	LIST_ENTRY InInitializationOrderLinks;
+	PVOID DllBase;
+	PVOID EntryPoint;
+	ULONG SizeOfImage;
+	UNICODE_STRING FullDllName;
+	UNICODE_STRING BaseDllName;
+	ULONG Flags;
+	USHORT LoadCount;
+	USHORT TlsIndex;
+	LIST_ENTRY HashLinks;
+	ULONG TimeDateStamp;
+} LDR_DATA_TABLE_ENTRY, *PLDR_DATA_TABLE_ENTRY;
+
+
+typedef struct _PEB
+{
+	UCHAR InheritedAddressSpace;
+	UCHAR ReadImageFileExecOptions;
+	UCHAR BeingDebugged;
+	UCHAR BitField;
+	PVOID Mutant;
+	PVOID ImageBaseAddress;
+	PPEB_LDR_DATA Ldr;
+	PVOID ProcessParameters;
+	PVOID SubSystemData;
+	PVOID ProcessHeap;
+	PVOID FastPebLock;
+	PVOID AtlThunkSListPtr;
+	PVOID IFEOKey;
+	PVOID CrossProcessFlags;
+	PVOID KernelCallbackTable;
+	ULONG SystemReserved;
+	ULONG AtlThunkSListPtr32;
+	PVOID ApiSetMap;
+} PEB, *PPEB;
+
+typedef struct _PEB_LDR_DATA32
+{
+	ULONG Length;
+	UCHAR Initialized;
+	ULONG SsHandle;
+	LIST_ENTRY32 InLoadOrderModuleList;
+	LIST_ENTRY32 InMemoryOrderModuleList;
+	LIST_ENTRY32 InInitializationOrderModuleList;
+} PEB_LDR_DATA32, *PPEB_LDR_DATA32;
+
+typedef struct _LDR_DATA_TABLE_ENTRY32
+{
+	LIST_ENTRY32 InLoadOrderLinks;
+	LIST_ENTRY32 InMemoryOrderLinks;
+	LIST_ENTRY32 InInitializationOrderLinks;
+	ULONG DllBase;
+	ULONG EntryPoint;
+	ULONG SizeOfImage;
+	UNICODE_STRING32 FullDllName;
+	UNICODE_STRING32 BaseDllName;
+	ULONG Flags;
+	USHORT LoadCount;
+	USHORT TlsIndex;
+	LIST_ENTRY32 HashLinks;
+	ULONG TimeDateStamp;
+} LDR_DATA_TABLE_ENTRY32, *PLDR_DATA_TABLE_ENTRY32;
+
+typedef struct _PEB32
+{
+	UCHAR InheritedAddressSpace;
+	UCHAR ReadImageFileExecOptions;
+	UCHAR BeingDebugged;
+	UCHAR BitField;
+	ULONG Mutant;
+	ULONG ImageBaseAddress;
+	ULONG Ldr;
+	ULONG ProcessParameters;
+	ULONG SubSystemData;
+	ULONG ProcessHeap;
+	ULONG FastPebLock;
+	ULONG AtlThunkSListPtr;
+	ULONG IFEOKey;
+	ULONG CrossProcessFlags;
+	ULONG UserSharedInfoPtr;
+	ULONG SystemReserved;
+	ULONG AtlThunkSListPtr32;
+	ULONG ApiSetMap;
+} PEB32, *PPEB32;
+
+typedef enum _KAPC_ENVIRONMENT
+{
+	OriginalApcEnvironment,
+	AttachedApcEnvironment,
+	CurrentApcEnvironment,
+	InsertApcEnvironment
+} KAPC_ENVIRONMENT, *PKAPC_ENVIRONMENT;
+
+typedef enum _MEMORY_INFORMATION_CLASS_EX
+{
+	MemoryBasicInformationEx = 0,
+	MemoryWorkingSetInformation = 1,
+	MemoryMappedFilenameInformation = 2,
+	MemoryRegionInformation = 3,
+	MemoryWorkingSetExInformation = 4,
+} MEMORY_INFORMATION_CLASS_EX;
+
+
 NTSYSAPI
 NTSTATUS
 NTAPI
@@ -224,4 +341,71 @@ ZwQuerySystemInformation(
 	OUT PVOID SystemInformation,
 	IN ULONG SystemInformationLength,
 	OUT PULONG ReturnLength OPTIONAL
+);
+
+typedef VOID(NTAPI *PKNORMAL_ROUTINE)(
+	PVOID NormalContext,
+	PVOID SystemArgument1,
+	PVOID SystemArgument2
+	);
+
+typedef VOID(NTAPI* PKKERNEL_ROUTINE)(
+	PRKAPC Apc,
+	PKNORMAL_ROUTINE *NormalRoutine,
+	PVOID *NormalContext,
+	PVOID *SystemArgument1,
+	PVOID *SystemArgument2
+	);
+
+typedef VOID(NTAPI *PKRUNDOWN_ROUTINE)(PRKAPC Apc);
+
+NTKERNELAPI
+VOID
+NTAPI
+KeInitializeApc(
+	IN PKAPC Apc,
+	IN PKTHREAD Thread,
+	IN KAPC_ENVIRONMENT ApcStateIndex,
+	IN PKKERNEL_ROUTINE KernelRoutine,
+	IN PKRUNDOWN_ROUTINE RundownRoutine,
+	IN PKNORMAL_ROUTINE NormalRoutine,
+	IN KPROCESSOR_MODE ApcMode,
+	IN PVOID NormalContext
+);
+
+NTKERNELAPI
+BOOLEAN
+NTAPI
+KeInsertQueueApc(
+	PKAPC Apc,
+	PVOID SystemArgument1,
+	PVOID SystemArgument2,
+	KPRIORITY Increment
+);
+
+NTKERNELAPI
+PVOID
+NTAPI
+PsGetProcessWow64Process(IN PEPROCESS Process);
+
+NTKERNELAPI
+PVOID
+NTAPI
+PsGetCurrentProcessWow64Process();
+
+NTKERNELAPI
+BOOLEAN
+NTAPI
+KeTestAlertThread(IN KPROCESSOR_MODE AlertMode);
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+ZwQueryVirtualMemory(
+	IN HANDLE  ProcessHandle,
+	IN PVOID   BaseAddress,
+	IN MEMORY_INFORMATION_CLASS_EX MemoryInformationClass,
+	OUT PVOID  Buffer,
+	IN SIZE_T  Length,
+	OUT PSIZE_T ResultLength
 );
