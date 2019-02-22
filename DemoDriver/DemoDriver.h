@@ -46,6 +46,17 @@ typedef struct _INJECT_BUFFER
 	NTSTATUS status;
 } INJECT_BUFFER, *PINJECT_BUFFER;
 
+typedef struct _EX_CALLBACK_BLOCK {
+	ULONG_PTR RundownProtect;
+	PVOID CallbackRoutine;
+	ULONG_PTR Context;
+}EX_CALLBACK_BLOCK, *PEX_CALLBACK_BLOCK;
+
+#define MAX_PROCESS_CALLBACKS	0x40
+#define MAX_THREAD_CALLBACKS	0x40
+#define MAX_IMAGE_CALLBACKS		0x8
+
+
 //
 // Helper functions
 //
