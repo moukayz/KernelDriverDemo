@@ -11,7 +11,6 @@ NTSTATUS GetProcessIdByName(IN PWSTR ProcessName, OUT PULONG Pid) {
 	PSYSTEM_PROCESS_INFO pProcessInfo = NULL;
 	
 	if (ProcessName == NULL || Pid == NULL)	return STATUS_INVALID_PARAMETER;
-
 	// Get the process thread list
 	status = ZwQuerySystemInformation(SystemModuleInformation, 0, bytes, &bytes);
 
