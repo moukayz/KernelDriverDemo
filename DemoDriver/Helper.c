@@ -24,7 +24,7 @@ NTSTATUS GetProcessIdByName(IN PWSTR ProcessName, OUT PULONG Pid) {
 
 	for (;;) {
 		if (FsRtlIsNameInExpression(&uProcessName, &pProcessInfo->ImageName, TRUE, NULL)) {
-			*Pid = pProcessInfo->UniqueProcessId;
+			*Pid = HandleToUlong(pProcessInfo->UniqueProcessId);
 			break;
 		}
 
@@ -220,4 +220,37 @@ PVOID GetModuleExport(
 	}
 
 	return (PVOID)pAddress;
+}
+
+PVOID GetKernelBase( PULONG pImageSize )
+{
+	PVOID pModuleBase = NULL;
+	PSYSTEM_MODULE_INFORMATION pSystemInfoBuffer = NULL;
+	ULONG SystemInfoBufferSize = 0;
+
+	NTSTATUS status = ZwQuerySystemInformation( SystemModuleInformation,&SystemInfoBufferSize,0,&SystemInfoBufferSize );
+	if ( !SystemInfoBufferSize ){
+		return NULL;
+	}
+
+	pSystemInfoBuffer = (PSYSTEM_MODULE_INFORMATION)ExAllocatePoolWithTag(NonPagedPool, SystemInfoBufferSize * 2 ,'tag');
+	if ( !pSystemInfoBuffer ){
+		return NULL;
+	}
+	memset( pSystemInfoBuffer, 0, SystemInfoBufferSize * 2 );
+
+	status = ZwQuerySystemInformation( SystemModuleInformation,
+		pSystemInfoBuffer,
+		SystemInfoBufferSize * 2,
+		&SystemInfoBufferSize );
+
+	if ( NT_SUCCESS( status ) ){
+		pModuleBase = pSystemInfoBuffer->Module[0].ImageBase;
+		if ( pImageSize )
+			*pImageSize = pSystemInfoBuffer->Module[0].ImageSize;
+	}
+	else
+		ExFreePoolWithTag( pSystemInfoBuffer,'tag' );
+
+	return pModuleBase;
 }

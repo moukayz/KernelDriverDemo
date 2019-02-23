@@ -20,6 +20,10 @@
 	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "[ %d-%s ]: ", __LINE__, __FUNCTION__); \
 	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, format, __VA_ARGS__)	
 
+#pragma warning(disable:4189)
+#pragma warning(disable:4100)
+#pragma warning(disable:4200)
+
 typedef enum _INJECT_TYPE {
 	ApcInject
 }INJECT_TYPE, *PINJECT_TYPE;
@@ -52,6 +56,12 @@ typedef struct _EX_CALLBACK_BLOCK {
 	ULONG_PTR Context;
 }EX_CALLBACK_BLOCK, *PEX_CALLBACK_BLOCK;
 
+typedef enum _CALLBACK_ROUTINE_TYPE {
+	ProcessCallback = 0,
+	ThreadCallback,
+	ImageCallback
+}CALLBACK_ROUTINE_TYPE;
+
 #define MAX_PROCESS_CALLBACKS	0x40
 #define MAX_THREAD_CALLBACKS	0x40
 #define MAX_IMAGE_CALLBACKS		0x8
@@ -73,7 +83,8 @@ PVOID GetModuleExport(
 	IN PUNICODE_STRING baseName
 );
 
-BOOLEAN CheckProcessTermination(PEPROCESS pProcess);
+BOOLEAN CheckProcessTermination( PEPROCESS pProcess );
 
-NTSTATUS GetProcessIdByName(IN PWSTR ProcessName, OUT PULONG Pid);
+NTSTATUS GetProcessIdByName( IN PWSTR ProcessName, OUT PULONG Pid );
 
+PVOID GetKernelBase( PULONG pImageSize );
