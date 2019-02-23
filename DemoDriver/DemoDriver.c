@@ -76,6 +76,7 @@ PVOID GetLoadImageCallbackArray();
 VOID EnumCallbackArray( PVOID CallbackArray, ULONG CallbackType );
 VOID EnumNotifyCallbacks();
 PVOID GetPspInitializeCallbacks();
+PVOID GetCallbackArray(ULONG CallbackType);
 
 #define DLL_PATH L"C:\\Users\\MOUKA\\Desktop\\TestDll.dll"
 
@@ -107,8 +108,7 @@ VOID DriverTest() {
 	PsSetCreateThreadNotifyRoutine( TestCreateThreadCallback );
 	PsSetLoadImageNotifyRoutine( TestLoadImageCallback );
 
-	GetPspInitializeCallbacks();
-	//EnumNotifyCallbacks();
+	EnumNotifyCallbacks();
 }
 
 VOID DriverTestClean() {
@@ -925,6 +925,7 @@ PVOID GetCallbackArray( ULONG CallbackType ) {
 	ULONG patternSize = 0;
 	ULONG offset = 0;
 	LONG_PTR relativeOffset = 0;
+	BOOLEAN found = FALSE;
 
 	switch ( CallbackType ){
 		case ProcessCallback:
@@ -947,12 +948,28 @@ PVOID GetCallbackArray( ULONG CallbackType ) {
 	}
 
 	pSetNotifyRoutine = MmGetSystemRoutineAddress( pSetNotifyRoutineName );
-	if ( !pPspSetCreateProcessNotifyRoutine ) {
+	if ( !pSetNotifyRoutine ) {
 		PrintLog( "Get set notify routine failed.\n" );
 		return NULL;
 	}
 
-	return NULL;
+	if (CallbackType == ProcessCallback) {
+		relativeOffset = *(PLONG)((PUCHAR)pSetNotifyRoutine + 4);
+		pSetNotifyRoutine = (PVOID)((LONG_PTR)relativeOffset + (LONG_PTR)((PUCHAR)pSetNotifyRoutine + 8));
+	}
+
+	// Start searching for pattern
+	for (; offset < 1000; offset++) {
+		if (RtlCompareMemory((PUCHAR)pSetNotifyRoutine + offset, pCallbackArrayPattern, patternSize) == patternSize) {
+			DbgBreakPoint();
+			relativeOffset = *(PLONG)((PUCHAR)pSetNotifyRoutine + offset + patternSize);
+			pCallbackArray = (PVOID)((LONG_PTR)relativeOffset + (LONG_PTR)((PUCHAR)pSetNotifyRoutine + offset + patternSize + 4));
+
+			break;
+		}
+	}
+
+	return pCallbackArray;
 }
 
 UCHAR testPattern[] = { 0x48,0x83,0xEC,0x28,0xB8,0x40,0x00,0x00,0x00,0x48,0x8D,0x0D,0x10,0x8E,0xCA,0xFF
@@ -994,8 +1011,8 @@ VOID EnumCallbackArray( PVOID CallbackArray, ULONG CallbackType ) {
 		if ( !pCallbackEntry )	continue;
 
 		PrintLog( "Callback %d :\n"
-			"CallbackRoutine: %p\n"
-			"ExFlags: %d\n\n",
+			"\tCallbackRoutine: %p\n"
+			"\tExFlags: %d\n",
 			count, pCallbackEntry->CallbackRoutine, pCallbackEntry->Context );
 	}
 }
@@ -1007,7 +1024,7 @@ VOID EnumNotifyCallbacks() {
 
 	DbgBreakPoint();
 	// Enum thread callbacks
-	pThreadCallbackArray = GetCreateThreadCallbackArray();
+	pThreadCallbackArray = GetCallbackArray(ThreadCallback);
 	if ( !pThreadCallbackArray ) {
 		PrintLog( "Cannot get thread callback array.\n" );
 		return;
@@ -1018,7 +1035,7 @@ VOID EnumNotifyCallbacks() {
 
 	DbgBreakPoint();
 	// Enum process callbacks
-	pProcessCallbackArray = GetCreateProcessCallbackArray();
+	pProcessCallbackArray = GetCallbackArray(ProcessCallback);
 	if ( !pProcessCallbackArray ) {
 		PrintLog( "Cannot get process callback array.\n" );
 		return;
@@ -1029,7 +1046,7 @@ VOID EnumNotifyCallbacks() {
 
 	DbgBreakPoint();
 	// Enum image callbacks
-	pImageCallbackArray = GetLoadImageCallbackArray();
+	pImageCallbackArray = GetCallbackArray(ImageCallback);
 	if ( !pImageCallbackArray ) {
 		PrintLog( "Cannot get image callback array.\n" );
 		return;
