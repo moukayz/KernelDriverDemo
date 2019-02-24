@@ -8,3 +8,5 @@ This is a demo Windows driver, which used to learn the internals of Windows.
 
 ## TODO:
 To implement user-mode client to test demo driver ( no need to hardcode test code in driver itself )
+
+## ONLY TESTED ON WIN7!!
