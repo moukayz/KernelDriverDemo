@@ -4,6 +4,7 @@
 #define SYMBOLIC_NAME	L"\\??\\DemoDriver"
 
 #define MAX_PATH	260
+#define MAX_SEARCH_SIZE 1000
 
 #define IOCTL_ENUM_PROCESS_APC  \
 	(ULONG)CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, \
@@ -23,6 +24,7 @@
 #pragma warning(disable:4189)
 #pragma warning(disable:4100)
 #pragma warning(disable:4200)
+
 
 typedef enum _INJECT_TYPE {
 	ApcInject
@@ -88,3 +90,7 @@ BOOLEAN CheckProcessTermination( PEPROCESS pProcess );
 NTSTATUS GetProcessIdByName( IN PWSTR ProcessName, OUT PULONG Pid );
 
 PVOID GetKernelBase( PULONG pImageSize );
+
+PVOID SearchPattern( PVOID Base, ULONG_PTR MaxSize, PCUCHAR Pattern, ULONG_PTR PatternSize );
+
+PVOID GetAddressFromRelative( PVOID pRelativeOffset );

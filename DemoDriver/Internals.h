@@ -438,3 +438,8 @@ ZwQueryVirtualMemory(
 	IN SIZE_T  Length,
 	OUT PSIZE_T ResultLength
 );
+
+NTSYSAPI
+PIMAGE_NT_HEADERS
+NTAPI
+RtlImageNtHeader( PVOID Base );

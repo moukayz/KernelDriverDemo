@@ -4,48 +4,48 @@
 #include "DemoDriver.h"
 #include "Internals.h"
 
-NTSTATUS GetProcessIdByName(IN PWSTR ProcessName, OUT PULONG Pid) {
+NTSTATUS GetProcessIdByName( IN PWSTR ProcessName, OUT PULONG Pid ) {
 	NTSTATUS status = STATUS_SUCCESS;
 	ULONG bytes = 0;
 	UNICODE_STRING uProcessName;
 	PSYSTEM_PROCESS_INFO pProcessInfo = NULL;
-	
-	if (ProcessName == NULL || Pid == NULL)	return STATUS_INVALID_PARAMETER;
+
+	if ( ProcessName == NULL || Pid == NULL )	return STATUS_INVALID_PARAMETER;
 	// Get the process thread list
-	status = ZwQuerySystemInformation(SystemModuleInformation, 0, bytes, &bytes);
+	status = ZwQuerySystemInformation( SystemModuleInformation, 0, bytes, &bytes );
 
-	pProcessInfo = (PSYSTEM_PROCESS_INFO)ExAllocatePoolWithTag(NonPagedPool, bytes, 'tag');
-	RtlZeroMemory(pProcessInfo, bytes);
+	pProcessInfo = (PSYSTEM_PROCESS_INFO)ExAllocatePoolWithTag( NonPagedPool, bytes, 'tag' );
+	RtlZeroMemory( pProcessInfo, bytes );
 
-	status = ZwQuerySystemInformation(SystemModuleInformation, pProcessInfo, bytes, &bytes);
-	if (NT_SUCCESS(status))	return status;
+	status = ZwQuerySystemInformation( SystemModuleInformation, pProcessInfo, bytes, &bytes );
+	if ( NT_SUCCESS( status ) )	return status;
 
-	RtlUnicodeStringInit(&uProcessName, ProcessName);
+	RtlUnicodeStringInit( &uProcessName, ProcessName );
 
-	for (;;) {
-		if (FsRtlIsNameInExpression(&uProcessName, &pProcessInfo->ImageName, TRUE, NULL)) {
-			*Pid = HandleToUlong(pProcessInfo->UniqueProcessId);
+	for ( ;;) {
+		if ( FsRtlIsNameInExpression( &uProcessName, &pProcessInfo->ImageName, TRUE, NULL ) ) {
+			*Pid = HandleToUlong( pProcessInfo->UniqueProcessId );
 			break;
 		}
 
-		if (pProcessInfo->NextEntryOffset)
-			pProcessInfo = (PSYSTEM_PROCESS_INFO)((PUCHAR)pProcessInfo + pProcessInfo->NextEntryOffset);
+		if ( pProcessInfo->NextEntryOffset )
+			pProcessInfo = (PSYSTEM_PROCESS_INFO)( (PUCHAR)pProcessInfo + pProcessInfo->NextEntryOffset );
 		else {
 			*Pid = 0;
 			break;
 		}
 	}
 
-	if (*Pid)
+	if ( *Pid )
 		return STATUS_SUCCESS;
-		
+
 	return STATUS_NOT_FOUND;
 }
 
-BOOLEAN CheckProcessTermination(PEPROCESS pProcess)
+BOOLEAN CheckProcessTermination( PEPROCESS pProcess )
 {
 	LARGE_INTEGER zeroTime = { 0 };
-	return KeWaitForSingleObject(pProcess, Executive, KernelMode, FALSE, &zeroTime) == STATUS_WAIT_0;
+	return KeWaitForSingleObject( pProcess, Executive, KernelMode, FALSE, &zeroTime ) == STATUS_WAIT_0;
 }
 
 PVOID GetUserModule(
@@ -54,8 +54,8 @@ PVOID GetUserModule(
 	IN BOOLEAN isWow64
 )
 {
-	ASSERT(pProcess != NULL);
-	if (pProcess == NULL)
+	ASSERT( pProcess != NULL );
+	if ( pProcess == NULL )
 		return NULL;
 
 	// Protect from UserMode AV
@@ -65,81 +65,81 @@ PVOID GetUserModule(
 		time.QuadPart = -250ll * 10 * 1000;     // 250 msec.
 
 												// Wow64 process
-		if (isWow64)
+		if ( isWow64 )
 		{
-			PPEB32 pPeb32 = (PPEB32)PsGetProcessWow64Process(pProcess);
-			if (pPeb32 == NULL)
+			PPEB32 pPeb32 = (PPEB32)PsGetProcessWow64Process( pProcess );
+			if ( pPeb32 == NULL )
 			{
-				DbgPrint("TEST: %s: No PEB present. Aborting\n", __FUNCTION__);
+				DbgPrint( "TEST: %s: No PEB present. Aborting\n", __FUNCTION__ );
 				return NULL;
 			}
 
 			// Wait for loader a bit
-			for (INT i = 0; !pPeb32->Ldr && i < 10; i++)
+			for ( INT i = 0; !pPeb32->Ldr && i < 10; i++ )
 			{
-				DbgPrint("TEST: %s: Loader not intialiezd, waiting\n", __FUNCTION__);
-				KeDelayExecutionThread(KernelMode, TRUE, &time);
+				DbgPrint( "TEST: %s: Loader not intialiezd, waiting\n", __FUNCTION__ );
+				KeDelayExecutionThread( KernelMode, TRUE, &time );
 			}
 
 			// Still no loader
-			if (!pPeb32->Ldr)
+			if ( !pPeb32->Ldr )
 			{
-				DbgPrint("TEST: %s: Loader was not intialiezd in time. Aborting\n", __FUNCTION__);
+				DbgPrint( "TEST: %s: Loader was not intialiezd in time. Aborting\n", __FUNCTION__ );
 				return NULL;
 			}
 
 			// Search in InLoadOrderModuleList
-			for (PLIST_ENTRY32 pListEntry = (PLIST_ENTRY32)((PPEB_LDR_DATA32)pPeb32->Ldr)->InLoadOrderModuleList.Flink;
-				pListEntry != &((PPEB_LDR_DATA32)pPeb32->Ldr)->InLoadOrderModuleList;
-				pListEntry = (PLIST_ENTRY32)pListEntry->Flink)
+			for ( PLIST_ENTRY32 pListEntry = (PLIST_ENTRY32)( (PPEB_LDR_DATA32)pPeb32->Ldr )->InLoadOrderModuleList.Flink;
+				pListEntry != &( (PPEB_LDR_DATA32)pPeb32->Ldr )->InLoadOrderModuleList;
+				pListEntry = (PLIST_ENTRY32)pListEntry->Flink )
 			{
 				UNICODE_STRING ustr;
-				PLDR_DATA_TABLE_ENTRY32 pEntry = CONTAINING_RECORD(pListEntry, LDR_DATA_TABLE_ENTRY32, InLoadOrderLinks);
+				PLDR_DATA_TABLE_ENTRY32 pEntry = CONTAINING_RECORD( pListEntry, LDR_DATA_TABLE_ENTRY32, InLoadOrderLinks );
 
-				RtlUnicodeStringInit(&ustr, (PWCH)pEntry->BaseDllName.Buffer);
+				RtlUnicodeStringInit( &ustr, (PWCH)pEntry->BaseDllName.Buffer );
 
-				if (RtlCompareUnicodeString(&ustr, ModuleName, TRUE) == 0)
+				if ( RtlCompareUnicodeString( &ustr, ModuleName, TRUE ) == 0 )
 					return (PVOID)pEntry->DllBase;
 			}
 		}
 		// Native process
 		else
 		{
-			PPEB pPeb = PsGetProcessPeb(pProcess);
-			if (!pPeb)
+			PPEB pPeb = PsGetProcessPeb( pProcess );
+			if ( !pPeb )
 			{
-				DbgPrint("TEST: %s: No PEB present. Aborting\n", __FUNCTION__);
+				DbgPrint( "TEST: %s: No PEB present. Aborting\n", __FUNCTION__ );
 				return NULL;
 			}
 
 			// Wait for loader a bit
-			for (INT i = 0; !pPeb->Ldr && i < 10; i++)
+			for ( INT i = 0; !pPeb->Ldr && i < 10; i++ )
 			{
-				DbgPrint("TEST: %s: Loader not intialiezd, waiting\n", __FUNCTION__);
-				KeDelayExecutionThread(KernelMode, TRUE, &time);
+				DbgPrint( "TEST: %s: Loader not intialiezd, waiting\n", __FUNCTION__ );
+				KeDelayExecutionThread( KernelMode, TRUE, &time );
 			}
 
 			// Still no loader
-			if (!pPeb->Ldr)
+			if ( !pPeb->Ldr )
 			{
-				DbgPrint("TEST: %s: Loader was not intialiezd in time. Aborting\n", __FUNCTION__);
+				DbgPrint( "TEST: %s: Loader was not intialiezd in time. Aborting\n", __FUNCTION__ );
 				return NULL;
 			}
 
 			// Search in InLoadOrderModuleList
-			for (PLIST_ENTRY pListEntry = pPeb->Ldr->InLoadOrderModuleList.Flink;
+			for ( PLIST_ENTRY pListEntry = pPeb->Ldr->InLoadOrderModuleList.Flink;
 				pListEntry != &pPeb->Ldr->InLoadOrderModuleList;
-				pListEntry = pListEntry->Flink)
+				pListEntry = pListEntry->Flink )
 			{
-				PLDR_DATA_TABLE_ENTRY pEntry = CONTAINING_RECORD(pListEntry, LDR_DATA_TABLE_ENTRY, InLoadOrderLinks);
-				if (RtlCompareUnicodeString(&pEntry->BaseDllName, ModuleName, TRUE) == 0)
+				PLDR_DATA_TABLE_ENTRY pEntry = CONTAINING_RECORD( pListEntry, LDR_DATA_TABLE_ENTRY, InLoadOrderLinks );
+				if ( RtlCompareUnicodeString( &pEntry->BaseDllName, ModuleName, TRUE ) == 0 )
 					return pEntry->DllBase;
 			}
 		}
 	}
-	__except (EXCEPTION_EXECUTE_HANDLER)
+	__except ( EXCEPTION_EXECUTE_HANDLER )
 	{
-		DbgPrint("TEST: %s: Exception, Code: 0x%X\n", __FUNCTION__, GetExceptionCode());
+		DbgPrint( "TEST: %s: Exception, Code: 0x%X\n", __FUNCTION__, GetExceptionCode() );
 	}
 
 	return NULL;
@@ -159,59 +159,59 @@ PVOID GetModuleExport(
 	ULONG expSize = 0;
 	ULONG_PTR pAddress = 0;
 
-	ASSERT(pBase != NULL);
+	ASSERT( pBase != NULL );
 
-	if (pDosHdr->e_magic != IMAGE_DOS_SIGNATURE)
+	if ( pDosHdr->e_magic != IMAGE_DOS_SIGNATURE )
 		// Not a PE file
 		return NULL;
 
-	pNtHdr32 = (PIMAGE_NT_HEADERS32)((PUCHAR)pBase + pDosHdr->e_lfanew);
-	pNtHdr64 = (PIMAGE_NT_HEADERS64)((PUCHAR)pBase + pDosHdr->e_lfanew);
+	pNtHdr32 = (PIMAGE_NT_HEADERS32)( (PUCHAR)pBase + pDosHdr->e_lfanew );
+	pNtHdr64 = (PIMAGE_NT_HEADERS64)( (PUCHAR)pBase + pDosHdr->e_lfanew );
 
-	if (pNtHdr32->Signature != IMAGE_NT_SIGNATURE)
+	if ( pNtHdr32->Signature != IMAGE_NT_SIGNATURE )
 		// Not a PE file
 		return NULL;
 
 	// If 64 bit image
-	if (pNtHdr32->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
+	if ( pNtHdr32->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC )
 	{
-		pExport = (PIMAGE_EXPORT_DIRECTORY)(pNtHdr64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress + (ULONG_PTR)pBase);
+		pExport = (PIMAGE_EXPORT_DIRECTORY)( pNtHdr64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress + (ULONG_PTR)pBase );
 		expSize = pNtHdr64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size;
 	}
 	else
 	{
-		pExport = (PIMAGE_EXPORT_DIRECTORY)(pNtHdr32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress + (ULONG_PTR)pBase);
+		pExport = (PIMAGE_EXPORT_DIRECTORY)( pNtHdr32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress + (ULONG_PTR)pBase );
 		expSize = pNtHdr32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size;
 	}
 
-	PUSHORT pAddressOfOrds = (PUSHORT)(pExport->AddressOfNameOrdinals + (ULONG_PTR)pBase);
-	PULONG  pAddressOfNames = (PULONG)(pExport->AddressOfNames + (ULONG_PTR)pBase);
-	PULONG	pAddressOfFuncs = (PULONG)(pExport->AddressOfFunctions + (ULONG_PTR)pBase);
+	PUSHORT pAddressOfOrds = (PUSHORT)( pExport->AddressOfNameOrdinals + (ULONG_PTR)pBase );
+	PULONG  pAddressOfNames = (PULONG)( pExport->AddressOfNames + (ULONG_PTR)pBase );
+	PULONG	pAddressOfFuncs = (PULONG)( pExport->AddressOfFunctions + (ULONG_PTR)pBase );
 
 	ANSI_STRING strSrcFunc = { 0 };
 	ANSI_STRING strCurFunc = { 0 };
-	RtlInitAnsiString(&strSrcFunc, name_ord);
+	RtlInitAnsiString( &strSrcFunc, name_ord );
 
-	for (ULONG i = 0; i < pExport->NumberOfFunctions; ++i)
+	for ( ULONG i = 0; i < pExport->NumberOfFunctions; ++i )
 	{
 		USHORT OrdIndex = 0xFFFF;
 		PCHAR  pName = NULL;
 
-		if ((ULONG_PTR)name_ord < 0xFFFF)
+		if ( (ULONG_PTR)name_ord < 0xFFFF )
 		{
 			OrdIndex = (USHORT)i;
 		}
-		else if ((ULONG_PTR)name_ord > 0xFFFF && i < pExport->NumberOfNames)
+		else if ( (ULONG_PTR)name_ord > 0xFFFF && i < pExport->NumberOfNames )
 		{
-			pName = (PCHAR)(pAddressOfNames[i] + (ULONG_PTR)pBase);
-			RtlInitAnsiString(&strCurFunc, pName);
+			pName = (PCHAR)( pAddressOfNames[i] + (ULONG_PTR)pBase );
+			RtlInitAnsiString( &strCurFunc, pName );
 			OrdIndex = pAddressOfOrds[i];
 		}
 		else
 			return NULL;
 
-		if (((ULONG_PTR)name_ord <= 0xFFFF && (USHORT)((ULONG_PTR)name_ord) == OrdIndex + pExport->Base) ||
-			((ULONG_PTR)name_ord > 0xFFFF && RtlCompareString(&strSrcFunc, &strCurFunc, TRUE) == 0))
+		if ( ( (ULONG_PTR)name_ord <= 0xFFFF && (USHORT)( (ULONG_PTR)name_ord ) == OrdIndex + pExport->Base ) ||
+			( (ULONG_PTR)name_ord > 0xFFFF && RtlCompareString( &strSrcFunc, &strCurFunc, TRUE ) == 0 ) )
 		{
 			pAddress = pAddressOfFuncs[OrdIndex] + (ULONG_PTR)pBase;
 			break;
@@ -228,13 +228,13 @@ PVOID GetKernelBase( PULONG pImageSize )
 	PSYSTEM_MODULE_INFORMATION pSystemInfoBuffer = NULL;
 	ULONG SystemInfoBufferSize = 0;
 
-	NTSTATUS status = ZwQuerySystemInformation( SystemModuleInformation,&SystemInfoBufferSize,0,&SystemInfoBufferSize );
-	if ( !SystemInfoBufferSize ){
+	NTSTATUS status = ZwQuerySystemInformation( SystemModuleInformation, &SystemInfoBufferSize, 0, &SystemInfoBufferSize );
+	if ( !SystemInfoBufferSize ) {
 		return NULL;
 	}
 
-	pSystemInfoBuffer = (PSYSTEM_MODULE_INFORMATION)ExAllocatePoolWithTag(NonPagedPool, SystemInfoBufferSize * 2 ,'tag');
-	if ( !pSystemInfoBuffer ){
+	pSystemInfoBuffer = (PSYSTEM_MODULE_INFORMATION)ExAllocatePoolWithTag( NonPagedPool, SystemInfoBufferSize * 2, 'tag' );
+	if ( !pSystemInfoBuffer ) {
 		return NULL;
 	}
 	memset( pSystemInfoBuffer, 0, SystemInfoBufferSize * 2 );
@@ -244,13 +244,40 @@ PVOID GetKernelBase( PULONG pImageSize )
 		SystemInfoBufferSize * 2,
 		&SystemInfoBufferSize );
 
-	if ( NT_SUCCESS( status ) ){
+	if ( NT_SUCCESS( status ) ) {
 		pModuleBase = pSystemInfoBuffer->Module[0].ImageBase;
 		if ( pImageSize )
 			*pImageSize = pSystemInfoBuffer->Module[0].ImageSize;
 	}
 	else
-		ExFreePoolWithTag( pSystemInfoBuffer,'tag' );
+		ExFreePoolWithTag( pSystemInfoBuffer, 'tag' );
 
 	return pModuleBase;
+}
+
+
+//
+// Search pattern bytes between the address Base and Base + MaxSize.
+//
+PVOID SearchPattern( PVOID Base, ULONG_PTR MaxSize, PCUCHAR Pattern, ULONG_PTR PatternSize ) {
+	ULONG_PTR offset = 0;
+	PVOID pPatternStart = NULL;
+
+	for ( ; offset < MaxSize - PatternSize; offset++ ) {
+		if ( RtlCompareMemory( (PUCHAR)Base + offset, Pattern, PatternSize ) == PatternSize ) {
+			pPatternStart = (PUCHAR)Base + offset;
+			break;
+		}
+	}
+
+	return pPatternStart;
+}
+
+//
+// Calculate the absolute address from relative offset in instructions like jmp,call,etc.
+//
+PVOID GetAddressFromRelative( PVOID pRelativeOffset ) {
+	/*LONG relativeOffset = *(PLONG)pRelativeOffset;
+	return (PVOID)( (LONG_PTR)relativeOffset + (LONG_PTR)( (PUCHAR)pRelativeOffset + 4 ) );*/
+	return (PVOID)( *(PLONG)pRelativeOffset + (LONG_PTR)( (PUCHAR)pRelativeOffset + 4 ) );
 }
