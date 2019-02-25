@@ -352,6 +352,39 @@ typedef struct _SYSTEM_MODULE_INFORMATION
 	SYSTEM_MODULE_ENTRY Module[0];
 } SYSTEM_MODULE_INFORMATION, *PSYSTEM_MODULE_INFORMATION;
 
+typedef struct _OB_CALLBACK_ENTRY {
+	LIST_ENTRY EntryItemList;
+	ULONG_PTR Operations;
+	PVOID CallbackEntry; // Points to the CALLBACK_ENTRY which we use for ObUnRegisterCallback
+	POBJECT_TYPE ObjectType;
+	POB_PRE_OPERATION_CALLBACK PreOperation;
+	POB_POST_OPERATION_CALLBACK PostOperation;
+	__int64 unk;
+}OB_CALLBACK_ENTRY, *POB_CALLBACK_ENTRY;
+
+typedef struct _OB_CALLBACK_BLOCK {
+	USHORT Version;
+	USHORT Count;
+	POB_OPERATION_REGISTRATION RegistrationContext;
+	UNICODE_STRING Altitude;
+	OB_CALLBACK_ENTRY Items[1]; // Is actually an array of CALLBACK_ENTRYs that are also in a doubly linked list
+}OB_CALLBACK_BLOCK, *POB_CALLBACK_BLOCK;
+
+typedef struct _OBJECT_TYPE {
+	LIST_ENTRY TypeList;
+	UNICODE_STRING Name;
+	PVOID DefaultObject;
+	ULONG Index;
+	ULONG TotalNumberOfObjects;
+	ULONG TotalNumberOfHandles;
+	ULONG HighWaterNumberOfObjects;
+	ULONG HighWaterNumberOfHandles;
+	UCHAR TypeInfo[0x70];
+	EX_PUSH_LOCK TypeLock;
+	ULONG Key;
+	LIST_ENTRY CallbackList;
+}OBJECT_TYPE, *POBJECT_TYPE;
+
 NTSYSAPI
 NTSTATUS
 NTAPI

@@ -147,6 +147,9 @@
     <Inf>
       <DateStamp>*</DateStamp>
     </Inf>
+    <Link>
+      <AdditionalOptions>%(AdditionalOptions)  /INTEGRITYCHECK</AdditionalOptions>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <Inf Include="DemoDriver.inf" />

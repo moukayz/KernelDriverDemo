@@ -5,6 +5,7 @@
 
 #define MAX_PATH	260
 #define MAX_SEARCH_SIZE 1000
+#define CALLBACK_ALTITUDE L"1011"
 
 #define IOCTL_ENUM_PROCESS_APC  \
 	(ULONG)CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, \
@@ -59,9 +60,12 @@ typedef struct _EX_CALLBACK_BLOCK {
 }EX_CALLBACK_BLOCK, *PEX_CALLBACK_BLOCK;
 
 typedef enum _CALLBACK_ROUTINE_TYPE {
-	ProcessCallback = 0,
-	ThreadCallback,
-	ImageCallback
+	ProcessNotifyCallback = 0,
+	ThreadNotifyCallback,
+	ImageNotifyCallback,
+	ProcessObjectCallback,
+	ThreadObjectCallback,
+	DesktopObjectCallback
 }CALLBACK_ROUTINE_TYPE;
 
 #define MAX_PROCESS_CALLBACKS	0x40

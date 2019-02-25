@@ -92,9 +92,30 @@ PVOID GetNotifyMask();
 BOOLEAN DisableNotifyCallback( ULONG CallbackType );
 
 //
+// Enum object callbacks registered by ObRegisterCallbacks
+//
+OB_PREOP_CALLBACK_STATUS
+TestPreOperationCallback(
+	_In_ PVOID RegistrationContext,
+	_Inout_ POB_PRE_OPERATION_INFORMATION PreInfo
+);
+VOID
+TestPostOperationCallback(
+	_In_	PVOID RegistrationContext,
+	_Inout_	POB_POST_OPERATION_INFORMATION	PostInfo
+);
+VOID EnumObCallbacks();
+VOID EnumObCallback(ULONG CallbackType);
+VOID TestUnregisterObCallbacks();
+BOOLEAN TestRegisterObCallbacks();
+
+//
 // Get ntos kernel base
 //
 PVOID GetKernelBase2( PULONG NtosSize );
+
+
+
 
 #define DLL_PATH L"C:\\Users\\MOUKA\\Desktop\\TestDll.dll"
 
@@ -125,13 +146,14 @@ VOID DriverTest() {
 	PsSetCreateProcessNotifyRoutineEx( TestCreateProcessCallbackEx, FALSE );
 	PsSetCreateThreadNotifyRoutine( TestCreateThreadCallback );
 	PsSetLoadImageNotifyRoutine( TestLoadImageCallback );
-
+	TestRegisterObCallbacks();
+	EnumObCallbacks();
 	/*EnumNotifyCallbacks();
 	GetNotifyMask();*/
-	//DisableNotifyCallback(ProcessCallback);
-	//DisableNotifyCallback(ThreadCallback);
-	//DisableNotifyCallback(ImageCallback);
-	GetKernelBase2( NULL );
+	//DisableNotifyCallback(ProcessNotifyCallback);
+	//DisableNotifyCallback(ThreadNotifyCallback);
+	//DisableNotifyCallback(ImageNotifyCallback);
+	//GetKernelBase2( NULL );
 }
 
 VOID DriverTestClean() {
@@ -139,6 +161,7 @@ VOID DriverTestClean() {
 	PsSetCreateProcessNotifyRoutineEx( TestCreateProcessCallbackEx, TRUE );
 	PsRemoveCreateThreadNotifyRoutine( TestCreateThreadCallback );
 	PsRemoveLoadImageNotifyRoutine( TestLoadImageCallback );
+	TestUnregisterObCallbacks();
 }
 
 NTSTATUS DriverEntry(
@@ -944,17 +967,17 @@ PVOID GetNotifyCallbackArray( ULONG CallbackType ) {
 	ULONG patternSize = 0;
 
 	switch ( CallbackType ) {
-		case ProcessCallback:
+		case ProcessNotifyCallback:
 			pSetNotifyRoutineName = &uPsSetCreateProcessNotifyRoutine;
 			pCallbackArrayPattern = ProcessCallbackArrayPattern;
 			patternSize = sizeof( ProcessCallbackArrayPattern );
 			break;
-		case ThreadCallback:
+		case ThreadNotifyCallback:
 			pSetNotifyRoutineName = &uPsSetCreateThreadNotifyRoutine;
 			pCallbackArrayPattern = ThreadCallbackArrayPattern;
 			patternSize = sizeof( ThreadCallbackArrayPattern );
 			break;
-		case ImageCallback:
+		case ImageNotifyCallback:
 			pSetNotifyRoutineName = &uPsSetLoadImageNotifyRoutine;
 			pCallbackArrayPattern = ImageCallbackArrayPattern;
 			patternSize = sizeof( ImageCallbackArrayPattern );
@@ -969,7 +992,7 @@ PVOID GetNotifyCallbackArray( ULONG CallbackType ) {
 		return NULL;
 	}
 
-	if ( CallbackType == ProcessCallback ) {
+	if ( CallbackType == ProcessNotifyCallback ) {
 		// PsSetCreateProcessNotifyRoutine and Ex all just jump to internal function nt!PspSetCreateProcessNotifyRoutine
 		// So need to get its address first before searching patterns
 		pSetNotifyRoutine = GetAddressFromRelative( (PUCHAR)pSetNotifyRoutine + 4 );
@@ -989,7 +1012,7 @@ PVOID GetNotifyCallbackArray( ULONG CallbackType ) {
 
 VOID EnumNotifyCallbackArray( PVOID CallbackArray, ULONG CallbackType ) {
 	ULONG count = 0;
-	ULONG maxCount = ( CallbackType == ImageCallback ) ? MAX_IMAGE_CALLBACKS : MAX_PROCESS_CALLBACKS;
+	ULONG maxCount = ( CallbackType == ImageNotifyCallback ) ? MAX_IMAGE_CALLBACKS : MAX_PROCESS_CALLBACKS;
 	PEX_CALLBACK_BLOCK pCallbackEntry = NULL;
 
 	for ( ; count < maxCount; count++ ) {
@@ -1011,35 +1034,35 @@ VOID EnumNotifyCallbacks() {
 
 	DbgBreakPoint();
 	// Enum thread callbacks
-	pThreadCallbackArray = GetNotifyCallbackArray( ThreadCallback );
+	pThreadCallbackArray = GetNotifyCallbackArray( ThreadNotifyCallback );
 	if ( !pThreadCallbackArray ) {
 		DPRINT( "Cannot get thread callback array.\n" );
 		return;
 	}
 
 	PrintLog( "\n============== Thread callback list ================\n" );
-	EnumNotifyCallbackArray( pThreadCallbackArray, ThreadCallback );
+	EnumNotifyCallbackArray( pThreadCallbackArray, ThreadNotifyCallback );
 
 	DbgBreakPoint();
 	// Enum process callbacks
-	pProcessCallbackArray = GetNotifyCallbackArray( ProcessCallback );
+	pProcessCallbackArray = GetNotifyCallbackArray( ProcessNotifyCallback );
 	if ( !pProcessCallbackArray ) {
 		DPRINT( "Cannot get process callback array.\n" );
 		return;
 	}
 
 	PrintLog( "\n============== Image callback list ================\n" );
-	EnumNotifyCallbackArray( pProcessCallbackArray, ProcessCallback );
+	EnumNotifyCallbackArray( pProcessCallbackArray, ProcessNotifyCallback );
 
 	DbgBreakPoint();
 	// Enum image callbacks
-	pImageCallbackArray = GetNotifyCallbackArray( ImageCallback );
+	pImageCallbackArray = GetNotifyCallbackArray( ImageNotifyCallback );
 	if ( !pImageCallbackArray ) {
 		DPRINT( "Cannot get image callback array.\n" );
 		return;
 	}
 	PrintLog( "\n============== Process callback list ================\n" );
-	EnumNotifyCallbackArray( pImageCallbackArray, ImageCallback );
+	EnumNotifyCallbackArray( pImageCallbackArray, ImageNotifyCallback );
 
 }
 
@@ -1092,14 +1115,14 @@ BOOLEAN DisableNotifyCallback( ULONG CallbackType ) {
 	DbgBreakPoint();
 	// Clean bits
 	switch ( CallbackType ) {
-		case ProcessCallback:
+		case ProcessNotifyCallback:
 			InterlockedBitTestAndReset( pNotifyMask, 1 );
 			InterlockedBitTestAndReset( pNotifyMask, 2 );
 			break;
-		case ThreadCallback:
+		case ThreadNotifyCallback:
 			InterlockedBitTestAndReset( pNotifyMask, 3 );
 			break;
-		case ImageCallback:
+		case ImageNotifyCallback:
 			InterlockedBitTestAndReset( pNotifyMask, 0 );
 			break;
 		default:
@@ -1140,4 +1163,128 @@ PVOID GetKernelBase2( PULONG NtosSize ) {
 		*NtosSize = pNtosHeader->OptionalHeader.SizeOfImage;
 
 	return *pNtosBase;
+}
+
+OB_PREOP_CALLBACK_STATUS
+TestPreOperationCallback(
+	_In_ PVOID RegistrationContext,
+	_Inout_ POB_PRE_OPERATION_INFORMATION PreInfo){
+	return OB_PREOP_SUCCESS;
+}
+
+VOID
+TestPostOperationCallback(
+	_In_	PVOID RegistrationContext,
+	_Inout_	POB_POST_OPERATION_INFORMATION	PostInfo) {
+	return;
+}
+
+PVOID pRegistrationHandle = NULL;
+BOOLEAN TestRegisterObCallbacks() {
+	NTSTATUS status;
+	OB_OPERATION_REGISTRATION opRegistration[2] = { 0 };
+	OB_OPERATION_REGISTRATION threadOpRegistration = { 0 };
+	OB_OPERATION_REGISTRATION processOpRegsitration = { 0 };
+	OB_CALLBACK_REGISTRATION callbackRegistration = { 0 };
+	UNICODE_STRING altitude;
+
+	// Process operation
+	processOpRegsitration.ObjectType = PsProcessType;
+	processOpRegsitration.PreOperation = TestPreOperationCallback;
+	processOpRegsitration.PostOperation = TestPostOperationCallback;
+	SetFlag(processOpRegsitration.Operations, OB_OPERATION_HANDLE_CREATE);
+	SetFlag(processOpRegsitration.Operations, OB_OPERATION_HANDLE_DUPLICATE);
+
+	// Thread operation
+	threadOpRegistration.ObjectType = PsThreadType;
+	threadOpRegistration.PreOperation = TestPreOperationCallback;
+	threadOpRegistration.PostOperation = TestPostOperationCallback;
+	SetFlag(threadOpRegistration.Operations, OB_OPERATION_HANDLE_CREATE);
+	SetFlag(threadOpRegistration.Operations, OB_OPERATION_HANDLE_DUPLICATE);
+
+	opRegistration[0] = processOpRegsitration;
+	opRegistration[1] = threadOpRegistration;
+
+	RtlInitUnicodeString(&altitude, CALLBACK_ALTITUDE);
+	callbackRegistration.Version = OB_FLT_REGISTRATION_VERSION;
+	callbackRegistration.OperationRegistrationCount = 2;
+	callbackRegistration.Altitude = altitude;
+	callbackRegistration.OperationRegistration = opRegistration;
+
+	status = ObRegisterCallbacks(
+		&callbackRegistration,
+		&pRegistrationHandle);
+
+	if (!NT_SUCCESS(status))
+	{
+		DPRINT("Install ob callback failed. status = %x\r\n", status);
+
+		return FALSE;
+	}
+
+	DPRINT("Install process callback successfully.\r\n");
+	return TRUE;
+}
+
+VOID TestUnregisterObCallbacks() {
+	if (pRegistrationHandle)
+		ObUnRegisterCallbacks(pRegistrationHandle);
+	pRegistrationHandle = NULL;
+}
+
+VOID EnumObCallback(ULONG CallbackType) {
+	POBJECT_TYPE pObject = NULL;
+	POB_CALLBACK_ENTRY callbackEntry = NULL;
+	PLIST_ENTRY nextEntry = NULL;
+	PLIST_ENTRY callbackListHead = NULL;
+	ULONG count = 0;
+
+	switch (CallbackType){
+	case ProcessObjectCallback:
+		pObject = *PsProcessType;
+		break;
+	case ThreadObjectCallback:
+		pObject = *PsThreadType;
+		break;
+	case DesktopObjectCallback:
+		pObject = *ExDesktopObjectType;
+		break;
+	default:
+		break;
+	}
+
+	if (!pObject) {
+		DPRINT("Unsupported object type!\n");
+		return;
+	}
+
+	DbgBreakPoint();
+	callbackListHead = &pObject->CallbackList;
+	nextEntry = callbackListHead->Flink;
+	while (nextEntry != callbackListHead) {
+		callbackEntry = CONTAINING_RECORD(nextEntry, OB_CALLBACK_ENTRY, EntryItemList);
+		PrintLog(
+			"Callback %d\n"
+			"\tPreCallback: %p\n"
+			"\tPostCallback: %p\n",
+			count++, callbackEntry->PreOperation, callbackEntry->PostOperation);
+		// Check operation type of the current callback entry
+		PrintLog("\tOperation type: ");
+		if (FlagOn(callbackEntry->Operations, OB_OPERATION_HANDLE_CREATE))
+			PrintLog("HANDLE_CREATE ");
+		if (FlagOn(callbackEntry->Operations, OB_OPERATION_HANDLE_DUPLICATE))
+			PrintLog("HANDLE_DUPLICATE ");
+		PrintLog("\n");
+
+		nextEntry = nextEntry->Flink;
+	}
+
+}
+
+VOID EnumObCallbacks() {
+	PrintLog("========= Process ob callback ========\n");
+	EnumObCallback(ProcessObjectCallback);
+
+	PrintLog("========= Thread ob callback ========\n");
+	EnumObCallback(ThreadObjectCallback);
 }
