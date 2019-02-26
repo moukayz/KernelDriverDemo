@@ -9,32 +9,34 @@ DRIVER_INITIALIZE	DriverEntry;
 DRIVER_UNLOAD		DriverUnload;
 DRIVER_DISPATCH		DriverDispatch;
 
-UNICODE_STRING uPsSetCreateProcessNotifyRoutine = RTL_CONSTANT_STRING( L"PsSetCreateProcessNotifyRoutine" );
-UNICODE_STRING uPsSetCreateThreadNotifyRoutine = RTL_CONSTANT_STRING( L"PsSetCreateThreadNotifyRoutine" );
-UNICODE_STRING uPsSetLoadImageNotifyRoutine = RTL_CONSTANT_STRING( L"PsSetLoadImageNotifyRoutine" );
-UNICODE_STRING uNameMmGetSystemRoutineAddress = RTL_CONSTANT_STRING( L"MmGetSystemRoutineAddress" );
+UNICODE_STRING uPsSetCreateProcessNotifyRoutine = RTL_CONSTANT_STRING(L"PsSetCreateProcessNotifyRoutine");
+UNICODE_STRING uPsSetCreateThreadNotifyRoutine = RTL_CONSTANT_STRING(L"PsSetCreateThreadNotifyRoutine");
+UNICODE_STRING uPsSetLoadImageNotifyRoutine = RTL_CONSTANT_STRING(L"PsSetLoadImageNotifyRoutine");
+UNICODE_STRING uNameMmGetSystemRoutineAddress = RTL_CONSTANT_STRING(L"MmGetSystemRoutineAddress");
+UNICODE_STRING uNameCmUnregisterCallbacks = RTL_CONSTANT_STRING(L"CmUnRegisterCallback");
 CONST UCHAR ProcessCallbackArrayPattern[] = { 0x66,0x01,0x87,0xc4,0x01,0x00,0x00, 0x4c,0x8d,0x35 };
 CONST UCHAR ThreadCallbackArrayPattern[] = { 0xeb, 0x4a, 0x33, 0xdb ,0x48 ,0x8d,0x0d };
 CONST UCHAR ImageCallbackArrayPattern[] = { 0xeb ,0x4a ,0x33 ,0xdb,0x48, 0x8d ,0x0d };
+CONST UCHAR CmCallbackListPattern[] = { 0x45 ,0x33 ,0xc0 ,0x48 ,0x8d ,0x54 ,0x24 ,0x20 ,0x48 ,0x8d, 0x0d };
 CONST UCHAR NotifyMaskPattern[] = { 0xeb ,0xcc ,0xf0 ,0x83 ,0x05 ,0x8b ,0x99 ,0xd9 ,0xff ,0x01 ,0x8b ,0x05 };
 CONST UCHAR NtosBasePattern[] = { 0x0f, 0x88 ,0xeb ,0xf1, 0x00, 0x00 ,0x48 ,0x8b ,0x54 ,0x24 ,0x28 ,0x48 ,0x8b ,0x0d };
 PVOID pDriverObject = NULL;
 PVOID pRegistrationHandle = NULL;
 LARGE_INTEGER CmCookie = { 0 };
 
-UNICODE_STRING CallbackAltitude = RTL_CONSTANT_STRING( L"1101" );
+UNICODE_STRING CallbackAltitude = RTL_CONSTANT_STRING(L"1101");
 
 //
 // Enum process APCs
 //
-NTSTATUS EnumProcessApc( PCWSTR ProcessName );
-NTSTATUS EnumThreadApc( PETHREAD Thread );
+NTSTATUS EnumProcessApc(PCWSTR ProcessName);
+NTSTATUS EnumThreadApc(PETHREAD Thread);
 
 //
 // Inject dll
 //
-NTSTATUS InjectDll( PINJECT_INFO InjectInfo );
-NTSTATUS InjectByApc( PINJECT_INFO InjectInfo );
+NTSTATUS InjectDll(PINJECT_INFO InjectInfo);
+NTSTATUS InjectByApc(PINJECT_INFO InjectInfo);
 PINJECT_BUFFER GetNativeCode(
 	IN PEPROCESS Process,
 	IN PVOID pLdrLoadDll,
@@ -61,7 +63,7 @@ VOID KernelApcPrepareCallback(
 	PVOID* SystemArgument1,
 	PVOID* SystemArgument2
 );
-NTSTATUS LookupSuitableThread( PEPROCESS Process, PETHREAD* pThread );
+NTSTATUS LookupSuitableThread(PEPROCESS Process, PETHREAD* pThread);
 
 //
 // Enum notify routine
@@ -69,32 +71,33 @@ NTSTATUS LookupSuitableThread( PEPROCESS Process, PETHREAD* pThread );
 VOID TestCreateProcessCallback(
 	_In_ HANDLE ParentId,
 	_In_ HANDLE ProcessId,
-	_In_ BOOLEAN Create );
+	_In_ BOOLEAN Create);
 
 VOID TestCreateProcessCallbackEx(
 	_Inout_ PEPROCESS Process,
 	_In_ HANDLE ProcessId,
-	_Inout_opt_ PPS_CREATE_NOTIFY_INFO CreateInfo );
+	_Inout_opt_ PPS_CREATE_NOTIFY_INFO CreateInfo);
 
 VOID TestLoadImageCallback(
 	_In_opt_ PUNICODE_STRING FullImageName,
 	_In_ HANDLE ProcessId,                // pid into which image is being mapped
-	_In_ PIMAGE_INFO ImageInfo );
+	_In_ PIMAGE_INFO ImageInfo);
 
 VOID TestCreateThreadCallback(
 	_In_ HANDLE ProcessId,
 	_In_ HANDLE ThreadId,
-	_In_ BOOLEAN Create );
+	_In_ BOOLEAN Create);
 PVOID GetCreateProcessCallbackArray();
 PVOID GetCreateThreadCallbackArray();
 PVOID GetLoadImageCallbackArray();
-
-VOID EnumNotifyCallbackArray( PVOID CallbackArray, ULONG CallbackType );
+VOID TestInstallNotifyCallbacks();
+VOID TestRemoveNotifyCallbacks();
+VOID EnumNotifyCallbackArray(PVOID CallbackArray, ULONG CallbackType);
 VOID EnumNotifyCallbacks();
 PVOID GetPspInitializeCallbacks();
-PVOID GetNotifyCallbackArray( ULONG CallbackType );
+PVOID GetNotifyCallbackArray(ULONG CallbackType);
 PVOID GetNotifyMask();
-BOOLEAN DisableNotifyCallback( ULONG CallbackType );
+BOOLEAN DisableNotifyCallback(ULONG CallbackType);
 
 //
 // Enum object callbacks registered by ObRegisterCallbacks
@@ -113,7 +116,7 @@ VOID EnumObCallbacks();
 VOID EnumObCallback(ULONG CallbackType);
 VOID TestUnregisterObCallbacks();
 BOOLEAN TestRegisterObCallbacks();
-BOOLEAN DisableObCallback( ULONG CallbackType );
+BOOLEAN DisableObCallback(ULONG CallbackType);
 
 //
 // Enum registry callbacks registered by CmRegisterCallbacks
@@ -121,13 +124,15 @@ BOOLEAN DisableObCallback( ULONG CallbackType );
 EX_CALLBACK_FUNCTION TestRegistryCallback;
 VOID TestRegisterCmCallbacks();
 VOID TestUnRegisterCmCallbacks();
+VOID TestRegistryEvents();
+PVOID GetCmCallbackList();
 VOID EnumCmCallbacks();
 BOOLEAN DisableCmCallbacks();
 
 //
 // Get ntos kernel base
 //
-PVOID GetKernelBase2( PULONG NtosSize );
+PVOID GetKernelBase2(PULONG NtosSize);
 
 
 
@@ -157,28 +162,26 @@ VOID DriverTest() {
 	InjectByApc( &injectInfo );*/
 
 	// Enum CreateProcess/CreateThread/LoadImage notify routine
-	PsSetCreateProcessNotifyRoutine( TestCreateProcessCallback, FALSE );
-	PsSetCreateProcessNotifyRoutineEx( TestCreateProcessCallbackEx, FALSE );
-	PsSetCreateThreadNotifyRoutine( TestCreateThreadCallback );
-	PsSetLoadImageNotifyRoutine( TestLoadImageCallback );
+	TestInstallNotifyCallbacks();
 	TestRegisterObCallbacks();
-	EnumObCallbacks();
-	DisableObCallback(ProcessObjectCallback);
-	DisableObCallback( ThreadObjectCallback );
+	TestRegisterCmCallbacks();
+	EnumCmCallbacks();
+	//EnumObCallbacks();
+	//DisableObCallback(ProcessObjectCallback);
+	//DisableObCallback( ThreadObjectCallback );
 	/*EnumNotifyCallbacks();
 	GetNotifyMask();*/
 	//DisableNotifyCallback(ProcessNotifyCallback);
 	//DisableNotifyCallback(ThreadNotifyCallback);
 	//DisableNotifyCallback(ImageNotifyCallback);
 	//GetKernelBase2( NULL );
+
 }
 
 VOID DriverTestClean() {
-	PsSetCreateProcessNotifyRoutine( TestCreateProcessCallback, TRUE );
-	PsSetCreateProcessNotifyRoutineEx( TestCreateProcessCallbackEx, TRUE );
-	PsRemoveCreateThreadNotifyRoutine( TestCreateThreadCallback );
-	PsRemoveLoadImageNotifyRoutine( TestLoadImageCallback );
+	TestRemoveNotifyCallbacks();
 	TestUnregisterObCallbacks();
+	TestUnRegisterCmCallbacks();
 }
 
 NTSTATUS DriverEntry(
@@ -186,7 +189,7 @@ NTSTATUS DriverEntry(
 	IN PUNICODE_STRING registryPath
 )
 {
-	UNREFERENCED_PARAMETER( registryPath );
+	UNREFERENCED_PARAMETER(registryPath);
 
 	NTSTATUS status = STATUS_SUCCESS;
 	PDEVICE_OBJECT deviceObject = NULL;
@@ -199,20 +202,20 @@ NTSTATUS DriverEntry(
 	DriverObject->DriverUnload = DriverUnload;
 
 	DbgBreakPoint();
-	RtlUnicodeStringInit( &deviceName, DEVICE_NAME );
-	status = IoCreateDevice( DriverObject, 0, &deviceName, FILE_DEVICE_UNKNOWN, FILE_DEVICE_SECURE_OPEN, FALSE, &deviceObject );
-	if ( !NT_SUCCESS( status ) )
+	RtlUnicodeStringInit(&deviceName, DEVICE_NAME);
+	status = IoCreateDevice(DriverObject, 0, &deviceName, FILE_DEVICE_UNKNOWN, FILE_DEVICE_SECURE_OPEN, FALSE, &deviceObject);
+	if (!NT_SUCCESS(status))
 	{
-		DbgPrint( "TEST: %s: IoCreateDevice failed with status 0x%X\n", __FUNCTION__, status );
+		DbgPrint("TEST: %s: IoCreateDevice failed with status 0x%X\n", __FUNCTION__, status);
 		return status;
 	}
 
-	RtlUnicodeStringInit( &deviceLink, SYMBOLIC_NAME );
-	status = IoCreateSymbolicLink( &deviceLink, &deviceName );
-	if ( !NT_SUCCESS( status ) )
+	RtlUnicodeStringInit(&deviceLink, SYMBOLIC_NAME);
+	status = IoCreateSymbolicLink(&deviceLink, &deviceName);
+	if (!NT_SUCCESS(status))
 	{
-		DbgPrint( "TEST: %s: IoCreateSymbolicLink failed with status 0x%X\n", __FUNCTION__, status );
-		IoDeleteDevice( deviceObject );
+		DbgPrint("TEST: %s: IoCreateSymbolicLink failed with status 0x%X\n", __FUNCTION__, status);
+		IoDeleteDevice(deviceObject);
 		return status;
 	}
 
@@ -224,21 +227,21 @@ NTSTATUS DriverEntry(
 	return STATUS_SUCCESS;
 }
 
-VOID DriverUnload( PDRIVER_OBJECT DriverObject ) {
+VOID DriverUnload(PDRIVER_OBJECT DriverObject) {
 	/*UNREFERENCED_PARAMETER(DriverObject);*/
 	UNICODE_STRING	deviceSymLink;
 	PAGED_CODE();
 	DbgBreakPoint();
 	DriverTestClean();
 
-	RtlUnicodeStringInit( &deviceSymLink, SYMBOLIC_NAME );
-	IoDeleteSymbolicLink( &deviceSymLink );
-	IoDeleteDevice( DriverObject->DeviceObject );
+	RtlUnicodeStringInit(&deviceSymLink, SYMBOLIC_NAME);
+	IoDeleteSymbolicLink(&deviceSymLink);
+	IoDeleteDevice(DriverObject->DeviceObject);
 
 }
 
-NTSTATUS DriverDispatch( PDEVICE_OBJECT DeviceObject, PIRP Irp ) {
-	UNREFERENCED_PARAMETER( DeviceObject );
+NTSTATUS DriverDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
+	UNREFERENCED_PARAMETER(DeviceObject);
 
 	NTSTATUS status = STATUS_SUCCESS;
 	PIO_STACK_LOCATION irpStack;
@@ -247,47 +250,47 @@ NTSTATUS DriverDispatch( PDEVICE_OBJECT DeviceObject, PIRP Irp ) {
 	ULONG outputBufferLength = 0;
 	ULONG ioControlCode = 0;
 
-	irpStack = IoGetCurrentIrpStackLocation( Irp );
+	irpStack = IoGetCurrentIrpStackLocation(Irp);
 	ioBuffer = Irp->AssociatedIrp.SystemBuffer;
 	inputBufferLength = irpStack->Parameters.DeviceIoControl.InputBufferLength;
 	outputBufferLength = irpStack->Parameters.DeviceIoControl.OutputBufferLength;
 	ioControlCode = irpStack->Parameters.DeviceIoControl.IoControlCode;
 
 
-	if ( irpStack->MajorFunction == IRP_MJ_DEVICE_CONTROL ) {
-		switch ( ioControlCode )
+	if (irpStack->MajorFunction == IRP_MJ_DEVICE_CONTROL) {
+		switch (ioControlCode)
 		{
-			case IOCTL_ENUM_PROCESS_APC:
-				if ( inputBufferLength <= MAX_PATH ) {
-					status = EnumProcessApc( (PCWSTR)ioBuffer );
-				}
-				else {
-					status = STATUS_INVALID_PARAMETER;
-				}
-				break;
-
-			case IOCTL_INJECT_DLL:
-				if ( inputBufferLength == sizeof( INJECT_INFO ) ) {
-					status = InjectDll( (PINJECT_INFO)ioBuffer );
-				}
-				else
-					status = STATUS_INVALID_PARAMETER;
-				break;
-
-			default:
+		case IOCTL_ENUM_PROCESS_APC:
+			if (inputBufferLength <= MAX_PATH) {
+				status = EnumProcessApc((PCWSTR)ioBuffer);
+			}
+			else {
 				status = STATUS_INVALID_PARAMETER;
-				break;
+			}
+			break;
+
+		case IOCTL_INJECT_DLL:
+			if (inputBufferLength == sizeof(INJECT_INFO)) {
+				status = InjectDll((PINJECT_INFO)ioBuffer);
+			}
+			else
+				status = STATUS_INVALID_PARAMETER;
+			break;
+
+		default:
+			status = STATUS_INVALID_PARAMETER;
+			break;
 		}
 	}
 
 	Irp->IoStatus.Status = status;
 	Irp->IoStatus.Information = 0;
-	IoCompleteRequest( Irp, IO_NO_INCREMENT );
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
 	return status;
 }
 
-NTSTATUS EnumProcessApc( PCWSTR ProcessName ) {
+NTSTATUS EnumProcessApc(PCWSTR ProcessName) {
 
 	PETHREAD currentThread;
 	ULONG pid;
@@ -301,31 +304,31 @@ NTSTATUS EnumProcessApc( PCWSTR ProcessName ) {
 	DbgBreakPoint();
 	__try {
 		// Find target process
-		status = ZwQuerySystemInformation( SystemProcessInformation, 0, bytes, &bytes );
+		status = ZwQuerySystemInformation(SystemProcessInformation, 0, bytes, &bytes);
 
-		pSavedProcessInfo = (PSYSTEM_PROCESS_INFO)ExAllocatePoolWithTag( NonPagedPool, bytes, 'tag' );
-		if ( !pSavedProcessInfo ) {
+		pSavedProcessInfo = (PSYSTEM_PROCESS_INFO)ExAllocatePoolWithTag(NonPagedPool, bytes, 'tag');
+		if (!pSavedProcessInfo) {
 			status = STATUS_INSUFFICIENT_RESOURCES;
 			__leave;
 		}
 		pProcessInfo = pSavedProcessInfo;
-		RtlZeroMemory( pProcessInfo, bytes );
+		RtlZeroMemory(pProcessInfo, bytes);
 
-		status = ZwQuerySystemInformation( SystemProcessInformation, pProcessInfo, bytes, &bytes );
-		if ( !NT_SUCCESS( status ) )	__leave;
+		status = ZwQuerySystemInformation(SystemProcessInformation, pProcessInfo, bytes, &bytes);
+		if (!NT_SUCCESS(status))	__leave;
 
 		DbgBreakPoint();
-		RtlUnicodeStringInit( &uProcessName, ProcessName );
-		for ( ;;) {
+		RtlUnicodeStringInit(&uProcessName, ProcessName);
+		for (;;) {
 			// Got it! 
-			if ( RtlCompareUnicodeString( &uProcessName, &pProcessInfo->ImageName, TRUE ) == 0 ) {
+			if (RtlCompareUnicodeString(&uProcessName, &pProcessInfo->ImageName, TRUE) == 0) {
 				DbgBreakPoint();
-				pid = HandleToUlong( pProcessInfo->UniqueProcessId );
+				pid = HandleToUlong(pProcessInfo->UniqueProcessId);
 				break;
 			}
 
-			if ( pProcessInfo->NextEntryOffset )
-				pProcessInfo = (PSYSTEM_PROCESS_INFO)( (PUCHAR)pProcessInfo + pProcessInfo->NextEntryOffset );
+			if (pProcessInfo->NextEntryOffset)
+				pProcessInfo = (PSYSTEM_PROCESS_INFO)((PUCHAR)pProcessInfo + pProcessInfo->NextEntryOffset);
 			else
 			{
 				pid = 0;
@@ -333,30 +336,30 @@ NTSTATUS EnumProcessApc( PCWSTR ProcessName ) {
 			}
 		}
 
-		if ( !pid ) {
+		if (!pid) {
 			status = STATUS_NOT_FOUND;
 			__leave;
 		}
 
 		// Iterate through its thread list to list all apcs
-		for ( ULONG i = 0; i < pProcessInfo->NumberOfThreads; i++ ) {
-			status = PsLookupThreadByThreadId( pProcessInfo->Threads[i].ClientId.UniqueThread, &currentThread );
-			if ( !NT_SUCCESS( status ) ) {
+		for (ULONG i = 0; i < pProcessInfo->NumberOfThreads; i++) {
+			status = PsLookupThreadByThreadId(pProcessInfo->Threads[i].ClientId.UniqueThread, &currentThread);
+			if (!NT_SUCCESS(status)) {
 				break;
 			}
 
-			EnumThreadApc( currentThread );
+			EnumThreadApc(currentThread);
 		}
 	}
 	__finally {
-		if ( pSavedProcessInfo )
-			ExFreePoolWithTag( pSavedProcessInfo, 'tag' );
+		if (pSavedProcessInfo)
+			ExFreePoolWithTag(pSavedProcessInfo, 'tag');
 	}
 
 	return status;
 }
 
-NTSTATUS EnumThreadApc( PETHREAD Thread ) {
+NTSTATUS EnumThreadApc(PETHREAD Thread) {
 	PKAPC_STATE pApcState;
 	PKAPC_STATE pSavedApcState;
 	PKAPC pCurrentApc;
@@ -365,10 +368,10 @@ NTSTATUS EnumThreadApc( PETHREAD Thread ) {
 	KIRQL oldIrql = { 0 };
 
 	// Only test on win7 !!
-	pApcState = (PKAPC_STATE)( (PUCHAR)Thread + 0x50 );
-	pSavedApcState = (PKAPC_STATE)( (PUCHAR)Thread + 0x240 );
+	pApcState = (PKAPC_STATE)((PUCHAR)Thread + 0x50);
+	pSavedApcState = (PKAPC_STATE)((PUCHAR)Thread + 0x240);
 
-	if ( !pApcState )
+	if (!pApcState)
 		return STATUS_INVALID_PARAMETER;
 
 	DbgBreakPoint();
@@ -382,18 +385,18 @@ NTSTATUS EnumThreadApc( PETHREAD Thread ) {
 		Thread,
 		pApcState->KernelApcInProgress,
 		pApcState->KernelApcPending,
-		pApcState->UserApcPending );
+		pApcState->UserApcPending);
 
 	// Raise IRQL level to APC level so APC list won't change in enumeration
-	KeRaiseIrql( APC_LEVEL, &oldIrql );
+	KeRaiseIrql(APC_LEVEL, &oldIrql);
 
 	// List kernel-mode Apc
-	PrintLog( "\t\tKernelMode APC:\n" );
+	PrintLog("\t\tKernelMode APC:\n");
 	pApcEntry = pApcState->ApcListHead[KernelMode].Flink;
 	apcCount = 0;
-	while ( pApcEntry != &pApcState->ApcListHead[KernelMode] ) {
-		pCurrentApc = (PKAPC)CONTAINING_RECORD( pApcEntry, KAPC, ApcListEntry );
-		if ( pCurrentApc ) {
+	while (pApcEntry != &pApcState->ApcListHead[KernelMode]) {
+		pCurrentApc = (PKAPC)CONTAINING_RECORD(pApcEntry, KAPC, ApcListEntry);
+		if (pCurrentApc) {
 			PrintLog(
 				"\t\t\tApc %d\n"
 				"\t\t\t\tKernelRoutine: %p\n"
@@ -402,7 +405,7 @@ NTSTATUS EnumThreadApc( PETHREAD Thread ) {
 				apcCount++,
 				pCurrentApc->Reserved[0],
 				pCurrentApc->Reserved[1],
-				pCurrentApc->Reserved[2] );
+				pCurrentApc->Reserved[2]);
 		}
 
 		pApcEntry = pApcEntry->Flink;
@@ -410,11 +413,11 @@ NTSTATUS EnumThreadApc( PETHREAD Thread ) {
 	}
 
 	// List user-mode Apc
-	PrintLog( "\t\tUserMode APC:\n" );
+	PrintLog("\t\tUserMode APC:\n");
 	pApcEntry = pApcState->ApcListHead[UserMode].Flink;
-	while ( pApcEntry != &pApcState->ApcListHead[UserMode] ) {
-		pCurrentApc = (PKAPC)CONTAINING_RECORD( pApcEntry, KAPC, ApcListEntry );
-		if ( pCurrentApc ) {
+	while (pApcEntry != &pApcState->ApcListHead[UserMode]) {
+		pCurrentApc = (PKAPC)CONTAINING_RECORD(pApcEntry, KAPC, ApcListEntry);
+		if (pCurrentApc) {
 			PrintLog(
 				"\t\t\tApc %d\n"
 				"\t\t\t\tKernelRoutine: %p\n"
@@ -423,46 +426,46 @@ NTSTATUS EnumThreadApc( PETHREAD Thread ) {
 				apcCount++,
 				pCurrentApc->Reserved[0],
 				pCurrentApc->Reserved[1],
-				pCurrentApc->Reserved[2] );
+				pCurrentApc->Reserved[2]);
 		}
 
 		pApcEntry = pApcEntry->Flink;
 	}
 
 	// Lower IRQL level 
-	KeLowerIrql( oldIrql );
+	KeLowerIrql(oldIrql);
 
 	return STATUS_SUCCESS;
 }
 
-NTSTATUS InjectDll( PINJECT_INFO InjectInfo ) {
+NTSTATUS InjectDll(PINJECT_INFO InjectInfo) {
 	NTSTATUS status;
 	UNICODE_STRING uDllpath;
 
-	if ( !InjectInfo )
+	if (!InjectInfo)
 		return STATUS_INVALID_PARAMETER;
 
-	status = RtlUnicodeStringInit( &uDllpath, InjectInfo->Dllpath );
-	if ( !NT_SUCCESS( status ) )
+	status = RtlUnicodeStringInit(&uDllpath, InjectInfo->Dllpath);
+	if (!NT_SUCCESS(status))
 		return status;
 
-	switch ( InjectInfo->Type )
+	switch (InjectInfo->Type)
 	{
-		case ApcInject:
-			status = InjectByApc( InjectInfo );
-			break;
+	case ApcInject:
+		status = InjectByApc(InjectInfo);
+		break;
 
-		default:
-			break;
+	default:
+		break;
 	}
 
 	return status;
 }
 
-UNICODE_STRING uNtdll = RTL_CONSTANT_STRING( L"NTDLL.DLL" );
+UNICODE_STRING uNtdll = RTL_CONSTANT_STRING(L"NTDLL.DLL");
 #define CALL_COMPLETE   0xC0371E7E
 
-NTSTATUS InjectByApc( PINJECT_INFO InjectInfo ) {
+NTSTATUS InjectByApc(PINJECT_INFO InjectInfo) {
 	NTSTATUS status = STATUS_SUCCESS;
 	PEPROCESS pProcess = NULL;
 	PETHREAD pTargetThread = NULL;
@@ -480,38 +483,38 @@ NTSTATUS InjectByApc( PINJECT_INFO InjectInfo ) {
 	PKAPC pPrepareApc = NULL;
 	PKAPC pInjectApc = NULL;
 
-	status = PsLookupProcessByProcessId( ULongToHandle( InjectInfo->Pid ), &pProcess );
-	if ( !NT_SUCCESS( status ) )
+	status = PsLookupProcessByProcessId(ULongToHandle(InjectInfo->Pid), &pProcess);
+	if (!NT_SUCCESS(status))
 		return status;
 
 	DbgBreakPoint();
 	__try {
-		isWow64 = ( PsGetProcessWow64Process( pProcess ) != NULL ) ? TRUE : FALSE;
-		if ( isWow64 )
-			status = RtlStringCbCopyW( dllpath, MAX_PATH, InjectInfo->Dllpath32 );
+		isWow64 = (PsGetProcessWow64Process(pProcess) != NULL) ? TRUE : FALSE;
+		if (isWow64)
+			status = RtlStringCbCopyW(dllpath, MAX_PATH, InjectInfo->Dllpath32);
 		else
-			status = RtlStringCbCopyW( dllpath, MAX_PATH, InjectInfo->Dllpath );
-		if ( !NT_SUCCESS( status ) )	__leave;
+			status = RtlStringCbCopyW(dllpath, MAX_PATH, InjectInfo->Dllpath);
+		if (!NT_SUCCESS(status))	__leave;
 
-		status = RtlUnicodeStringInit( &uDllpath, dllpath );
-		if ( !NT_SUCCESS( status ) )	__leave;
+		status = RtlUnicodeStringInit(&uDllpath, dllpath);
+		if (!NT_SUCCESS(status))	__leave;
 
-		if ( CheckProcessTermination( PsGetCurrentProcess() ) )
+		if (CheckProcessTermination(PsGetCurrentProcess()))
 		{
 			status = STATUS_PROCESS_IS_TERMINATING;
 			__leave;
 		}
 
-		KeStackAttachProcess( pProcess, &oldApc );
+		KeStackAttachProcess(pProcess, &oldApc);
 
-		pNtdll = GetUserModule( pProcess, &uNtdll, isWow64 );
-		if ( !pNtdll ) {
+		pNtdll = GetUserModule(pProcess, &uNtdll, isWow64);
+		if (!pNtdll) {
 			status = STATUS_NOT_FOUND;
 			__leave;
 		}
 
-		pLdrLoadDll = GetModuleExport( pNtdll, "LdrLoadDll", pProcess, NULL );
-		if ( !pLdrLoadDll ) {
+		pLdrLoadDll = GetModuleExport(pNtdll, "LdrLoadDll", pProcess, NULL);
+		if (!pLdrLoadDll) {
 			status = STATUS_NOT_FOUND;
 			__leave;
 		}
@@ -520,20 +523,20 @@ NTSTATUS InjectByApc( PINJECT_INFO InjectInfo ) {
 		//RtlSecureZeroMemory(&oldApc, sizeof(KAPC_STATE));
 		DbgBreakPoint();
 
-		pInjectBuffer = isWow64 ? GetWow64Code( pProcess, pLdrLoadDll, &uDllpath ) : GetNativeCode( pProcess, pLdrLoadDll, &uDllpath );
-		if ( !pInjectBuffer ) {
+		pInjectBuffer = isWow64 ? GetWow64Code(pProcess, pLdrLoadDll, &uDllpath) : GetNativeCode(pProcess, pLdrLoadDll, &uDllpath);
+		if (!pInjectBuffer) {
 			status = STATUS_UNSUCCESSFUL;
 			__leave;
 		}
 
-		status = LookupSuitableThread( pProcess, &pTargetThread );
-		if ( !NT_SUCCESS( status ) )
+		status = LookupSuitableThread(pProcess, &pTargetThread);
+		if (!NT_SUCCESS(status))
 			__leave;
 
 		// Queue user apc to target thread
-		pInjectApc = ExAllocatePoolWithTag( NonPagedPool, sizeof( KAPC ), 'tag' );
-		pPrepareApc = ExAllocatePoolWithTag( NonPagedPool, sizeof( KAPC ), 'tag' );
-		if ( !pInjectApc || !pPrepareApc ) {
+		pInjectApc = ExAllocatePoolWithTag(NonPagedPool, sizeof(KAPC), 'tag');
+		pPrepareApc = ExAllocatePoolWithTag(NonPagedPool, sizeof(KAPC), 'tag');
+		if (!pInjectApc || !pPrepareApc) {
 			status = STATUS_INSUFFICIENT_RESOURCES;
 			__leave;
 		}
@@ -543,37 +546,37 @@ NTSTATUS InjectByApc( PINJECT_INFO InjectInfo ) {
 			pInjectApc,
 			(PKTHREAD)pTargetThread,
 			OriginalApcEnvironment, &KernelApcInjectCallback,
-			NULL, (PKNORMAL_ROUTINE)(ULONG_PTR)pInjectBuffer->code, UserMode, NULL );
+			NULL, (PKNORMAL_ROUTINE)(ULONG_PTR)pInjectBuffer->code, UserMode, NULL);
 
 		KeInitializeApc(
 			pPrepareApc, (PKTHREAD)pTargetThread,
 			OriginalApcEnvironment, &KernelApcPrepareCallback,
-			NULL, NULL, KernelMode, NULL );
+			NULL, NULL, KernelMode, NULL);
 
 		// Insert apc
-		KeInsertQueueApc( pInjectApc, NULL, NULL, 0 );
-		KeInsertQueueApc( pPrepareApc, NULL, NULL, 0 );
+		KeInsertQueueApc(pInjectApc, NULL, NULL, 0);
+		KeInsertQueueApc(pPrepareApc, NULL, NULL, 0);
 
 		// Wait for completion
 		LARGE_INTEGER interval = { 0 };
-		interval.QuadPart = -( 5LL * 10 * 1000 );
+		interval.QuadPart = -(5LL * 10 * 1000);
 
-		for ( ULONG i = 0; i < 10000; i++ )
+		for (ULONG i = 0; i < 10000; i++)
 		{
-			if ( CheckProcessTermination( PsGetCurrentProcess() ) || PsIsThreadTerminating( pTargetThread ) )
+			if (CheckProcessTermination(PsGetCurrentProcess()) || PsIsThreadTerminating(pTargetThread))
 			{
 				status = STATUS_PROCESS_IS_TERMINATING;
 				break;
 			}
 
-			if ( pInjectBuffer->complete == CALL_COMPLETE )
+			if (pInjectBuffer->complete == CALL_COMPLETE)
 				break;
 
-			if ( !NT_SUCCESS( status = KeDelayExecutionThread( KernelMode, FALSE, &interval ) ) )
+			if (!NT_SUCCESS(status = KeDelayExecutionThread(KernelMode, FALSE, &interval)))
 				break;
 		}
 
-		if ( NT_SUCCESS( status ) )
+		if (NT_SUCCESS(status))
 			status = pInjectBuffer->status;
 	}
 	__finally {
@@ -583,18 +586,18 @@ NTSTATUS InjectByApc( PINJECT_INFO InjectInfo ) {
 		if (pInjectApc)
 			ExFreePoolWithTag(pInjectApc, 'tag');*/
 
-		if ( pInjectBuffer )
-			ZwFreeVirtualMemory( ZwCurrentProcess(), &pInjectBuffer, &size, MEM_RELEASE );
+		if (pInjectBuffer)
+			ZwFreeVirtualMemory(ZwCurrentProcess(), &pInjectBuffer, &size, MEM_RELEASE);
 
 		// oldApc not zeroed, so target process is still attached
-		if ( oldApc.ApcListHead[0].Flink )
-			KeUnstackDetachProcess( &oldApc );
+		if (oldApc.ApcListHead[0].Flink)
+			KeUnstackDetachProcess(&oldApc);
 
-		if ( pTargetThread )
-			ObDereferenceObject( pTargetThread );
+		if (pTargetThread)
+			ObDereferenceObject(pTargetThread);
 
-		if ( pProcess )
-			ObDereferenceObject( pProcess );
+		if (pProcess)
+			ObDereferenceObject(pProcess);
 	}
 
 	return status;
@@ -626,11 +629,11 @@ PINJECT_BUFFER GetWow64Code(
 		0xC2, 0x04, 0x00                        // ret 4
 	};
 
-	status = ObOpenObjectByPointer( Process, OBJ_KERNEL_HANDLE, NULL, PROCESS_ALL_ACCESS, NULL, KernelMode, &ProcessHandle );
+	status = ObOpenObjectByPointer(Process, OBJ_KERNEL_HANDLE, NULL, PROCESS_ALL_ACCESS, NULL, KernelMode, &ProcessHandle);
 
-	status = ZwAllocateVirtualMemory( ProcessHandle, &pBuffer, 0, &size, MEM_COMMIT, PAGE_EXECUTE_READWRITE );
+	status = ZwAllocateVirtualMemory(ProcessHandle, &pBuffer, 0, &size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 	//status = ZwAllocateVirtualMemory(ZwCurrentProcess(), &pBuffer, 0, &size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-	if ( NT_SUCCESS( status ) )
+	if (NT_SUCCESS(status))
 	{
 		// Copy path
 		PUNICODE_STRING32 pUserPath = &pBuffer->path32;
@@ -639,23 +642,23 @@ PINJECT_BUFFER GetWow64Code(
 		pUserPath->Buffer = (ULONG)(ULONG_PTR)pBuffer->buffer;
 
 		// Copy path
-		memcpy( (PVOID)pUserPath->Buffer, pPath->Buffer, pPath->Length );
+		memcpy((PVOID)pUserPath->Buffer, pPath->Buffer, pPath->Length);
 
 		// Copy code
-		memcpy( pBuffer, code, sizeof( code ) );
+		memcpy(pBuffer, code, sizeof(code));
 
 		// Fill stubs
-		*(ULONG*)( (PUCHAR)pBuffer + 1 ) = (ULONG)(ULONG_PTR)&pBuffer->module;
-		*(ULONG*)( (PUCHAR)pBuffer + 6 ) = (ULONG)(ULONG_PTR)pUserPath;
-		*(ULONG*)( (PUCHAR)pBuffer + 15 ) = (ULONG)( (ULONG_PTR)pLdrLoadDll - ( (ULONG_PTR)pBuffer + 15 ) - 5 + 1 );
-		*(ULONG*)( (PUCHAR)pBuffer + 20 ) = (ULONG)(ULONG_PTR)&pBuffer->complete;
-		*(ULONG*)( (PUCHAR)pBuffer + 31 ) = (ULONG)(ULONG_PTR)&pBuffer->status;
+		*(ULONG*)((PUCHAR)pBuffer + 1) = (ULONG)(ULONG_PTR)&pBuffer->module;
+		*(ULONG*)((PUCHAR)pBuffer + 6) = (ULONG)(ULONG_PTR)pUserPath;
+		*(ULONG*)((PUCHAR)pBuffer + 15) = (ULONG)((ULONG_PTR)pLdrLoadDll - ((ULONG_PTR)pBuffer + 15) - 5 + 1);
+		*(ULONG*)((PUCHAR)pBuffer + 20) = (ULONG)(ULONG_PTR)&pBuffer->complete;
+		*(ULONG*)((PUCHAR)pBuffer + 31) = (ULONG)(ULONG_PTR)&pBuffer->status;
 
 		return pBuffer;
 	}
 
-	if ( ProcessHandle )
-		ZwClose( ProcessHandle );
+	if (ProcessHandle)
+		ZwClose(ProcessHandle);
 
 	return NULL;
 
@@ -690,41 +693,41 @@ PINJECT_BUFFER GetNativeCode(
 		0xC3                                    // ret
 	};
 
-	status = ObOpenObjectByPointer( Process, OBJ_KERNEL_HANDLE, NULL, PROCESS_ALL_ACCESS, NULL, KernelMode, &ProcessHandle );
+	status = ObOpenObjectByPointer(Process, OBJ_KERNEL_HANDLE, NULL, PROCESS_ALL_ACCESS, NULL, KernelMode, &ProcessHandle);
 
-	status = ZwAllocateVirtualMemory( ProcessHandle, &pBuffer, 0, &size, MEM_COMMIT, PAGE_EXECUTE_READWRITE );
+	status = ZwAllocateVirtualMemory(ProcessHandle, &pBuffer, 0, &size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
 	//pBuffer = (PINJECT_BUFFER)AllocateInjectMemory(ProcessHandle, g_pNtdll, PAGE_SIZE);
-	if ( NT_SUCCESS( status ) && pBuffer )
+	if (NT_SUCCESS(status) && pBuffer)
 	{
 		// Copy path
 		PUNICODE_STRING pUserPath = &pBuffer->path;
 		pUserPath->Length = 0;
-		pUserPath->MaximumLength = sizeof( pBuffer->buffer );
+		pUserPath->MaximumLength = sizeof(pBuffer->buffer);
 		pUserPath->Buffer = pBuffer->buffer;
 
-		RtlUnicodeStringCopy( pUserPath, pPath );
+		RtlUnicodeStringCopy(pUserPath, pPath);
 
 		// Copy code
-		memcpy( pBuffer, code, sizeof( code ) );
+		memcpy(pBuffer, code, sizeof(code));
 
 		// Fill stubs
-		*(ULONGLONG*)( (PUCHAR)pBuffer + 12 ) = (ULONGLONG)pUserPath;
-		*(ULONGLONG*)( (PUCHAR)pBuffer + 22 ) = (ULONGLONG)&pBuffer->module;
-		*(ULONGLONG*)( (PUCHAR)pBuffer + 32 ) = (ULONGLONG)pLdrLoadDll;
-		*(ULONGLONG*)( (PUCHAR)pBuffer + 44 ) = (ULONGLONG)&pBuffer->complete;
-		*(ULONGLONG*)( (PUCHAR)pBuffer + 60 ) = (ULONGLONG)&pBuffer->status;
+		*(ULONGLONG*)((PUCHAR)pBuffer + 12) = (ULONGLONG)pUserPath;
+		*(ULONGLONG*)((PUCHAR)pBuffer + 22) = (ULONGLONG)&pBuffer->module;
+		*(ULONGLONG*)((PUCHAR)pBuffer + 32) = (ULONGLONG)pLdrLoadDll;
+		*(ULONGLONG*)((PUCHAR)pBuffer + 44) = (ULONGLONG)&pBuffer->complete;
+		*(ULONGLONG*)((PUCHAR)pBuffer + 60) = (ULONGLONG)&pBuffer->status;
 
 		return pBuffer;
 	}
 
-	if ( ProcessHandle )
-		ZwClose( ProcessHandle );
+	if (ProcessHandle)
+		ZwClose(ProcessHandle);
 
 	return NULL;
 }
 
-NTSTATUS LookupSuitableThread( PEPROCESS Process, PETHREAD* pThread ) {
+NTSTATUS LookupSuitableThread(PEPROCESS Process, PETHREAD* pThread) {
 	HANDLE pid;
 	HANDLE currentTid;
 	ULONG bytes;
@@ -732,60 +735,60 @@ NTSTATUS LookupSuitableThread( PEPROCESS Process, PETHREAD* pThread ) {
 	PSYSTEM_PROCESS_INFO pProcessInfo = NULL;
 	PVOID pSavedProcessInfo = NULL;
 
-	pid = PsGetProcessId( Process );
+	pid = PsGetProcessId(Process);
 	currentTid = PsGetCurrentThreadId();
 	__try {
-		status = ZwQuerySystemInformation( SystemProcessInformation, 0, bytes, &bytes );
+		status = ZwQuerySystemInformation(SystemProcessInformation, 0, bytes, &bytes);
 
-		pSavedProcessInfo = (PSYSTEM_PROCESS_INFO)ExAllocatePoolWithTag( NonPagedPool, bytes, 'tag' );
-		if ( !pSavedProcessInfo ) {
+		pSavedProcessInfo = (PSYSTEM_PROCESS_INFO)ExAllocatePoolWithTag(NonPagedPool, bytes, 'tag');
+		if (!pSavedProcessInfo) {
 			status = STATUS_INSUFFICIENT_RESOURCES;
 			__leave;
 		}
 		pProcessInfo = pSavedProcessInfo;
-		RtlZeroMemory( pProcessInfo, bytes );
+		RtlZeroMemory(pProcessInfo, bytes);
 
-		status = ZwQuerySystemInformation( SystemProcessInformation, pProcessInfo, bytes, &bytes );
-		if ( !NT_SUCCESS( status ) )	__leave;
+		status = ZwQuerySystemInformation(SystemProcessInformation, pProcessInfo, bytes, &bytes);
+		if (!NT_SUCCESS(status))	__leave;
 
 		status = STATUS_NOT_FOUND;
-		for ( ;;)
+		for (;;)
 		{
-			if ( pProcessInfo->UniqueProcessId == pid )
+			if (pProcessInfo->UniqueProcessId == pid)
 			{
 				status = STATUS_SUCCESS;
 				break;
 			}
-			else if ( pProcessInfo->NextEntryOffset )
-				pProcessInfo = (PSYSTEM_PROCESS_INFO)( (PUCHAR)pProcessInfo + pProcessInfo->NextEntryOffset );
+			else if (pProcessInfo->NextEntryOffset)
+				pProcessInfo = (PSYSTEM_PROCESS_INFO)((PUCHAR)pProcessInfo + pProcessInfo->NextEntryOffset);
 			else
 				break;
 		}
 
-		if ( !NT_SUCCESS( status ) )
+		if (!NT_SUCCESS(status))
 			__leave;
 
 		status = STATUS_NOT_FOUND;
-		for ( ULONG i = 0; i < pProcessInfo->NumberOfThreads; i++ )
+		for (ULONG i = 0; i < pProcessInfo->NumberOfThreads; i++)
 		{
 			// Skip current thread
-			if ( pProcessInfo->Threads[i].WaitReason == Suspended ||
+			if (pProcessInfo->Threads[i].WaitReason == Suspended ||
 				pProcessInfo->Threads[i].ThreadState == 5 ||
-				pProcessInfo->Threads[i].ClientId.UniqueThread == currentTid )
+				pProcessInfo->Threads[i].ClientId.UniqueThread == currentTid)
 			{
 				continue;
 			}
 
 			DbgBreakPoint();
-			status = PsLookupThreadByThreadId( pProcessInfo->Threads[i].ClientId.UniqueThread, pThread );
+			status = PsLookupThreadByThreadId(pProcessInfo->Threads[i].ClientId.UniqueThread, pThread);
 
 			break;
 		}
 
 	}
 	__finally {
-		if ( pSavedProcessInfo )
-			ExFreePoolWithTag( pSavedProcessInfo, 'tag' );
+		if (pSavedProcessInfo)
+			ExFreePoolWithTag(pSavedProcessInfo, 'tag');
 	}
 
 	return status;
@@ -800,18 +803,18 @@ VOID KernelApcInjectCallback(
 	PVOID* SystemArgument2
 )
 {
-	UNREFERENCED_PARAMETER( SystemArgument1 );
-	UNREFERENCED_PARAMETER( SystemArgument2 );
+	UNREFERENCED_PARAMETER(SystemArgument1);
+	UNREFERENCED_PARAMETER(SystemArgument2);
 
 	// Skip execution
-	if ( PsIsThreadTerminating( PsGetCurrentThread() ) )
+	if (PsIsThreadTerminating(PsGetCurrentThread()))
 		*NormalRoutine = NULL;
 
 	// Fix Wow64 APC
-	if ( PsGetCurrentProcessWow64Process() != NULL )
-		PsWrapApcWow64Thread( NormalContext, (PVOID*)NormalRoutine );
+	if (PsGetCurrentProcessWow64Process() != NULL)
+		PsWrapApcWow64Thread(NormalContext, (PVOID*)NormalRoutine);
 
-	ExFreePoolWithTag( Apc, 'tag' );
+	ExFreePoolWithTag(Apc, 'tag');
 }
 
 // Kernel routine for prepare apc
@@ -824,33 +827,33 @@ VOID KernelApcPrepareCallback(
 )
 {
 	// Alert current thread
-	KeTestAlertThread( UserMode );
-	ExFreePoolWithTag( Apc, 'tag' );
+	KeTestAlertThread(UserMode);
+	ExFreePoolWithTag(Apc, 'tag');
 }
 
 // Create process notify routine
 VOID TestCreateProcessCallback(
 	_In_ HANDLE ParentId,
 	_In_ HANDLE ProcessId,
-	_In_ BOOLEAN Create ) {
+	_In_ BOOLEAN Create) {
 	//DbgBreakPoint();
-	PrintLog( "CreateProcessCallback called.\n" );
+	PrintLog("CreateProcessCallback called.\n");
 }
 
 // Create process notify routine(EX)
 VOID TestCreateProcessCallbackEx(
 	_Inout_ PEPROCESS Process,
 	_In_ HANDLE ProcessId,
-	_Inout_opt_ PPS_CREATE_NOTIFY_INFO CreateInfo ) {
+	_Inout_opt_ PPS_CREATE_NOTIFY_INFO CreateInfo) {
 	//DbgBreakPoint();
-	PrintLog( "CreateProcessCallbackEx called.\n" );
+	PrintLog("CreateProcessCallbackEx called.\n");
 }
 
 // Create thread notify routine
 VOID TestCreateThreadCallback(
 	_In_ HANDLE ProcessId,
 	_In_ HANDLE ThreadId,
-	_In_ BOOLEAN Create ) {
+	_In_ BOOLEAN Create) {
 	//DbgBreakPoint();
 	//PrintLog( "CreateThreadCallback called.\n" );
 }
@@ -859,49 +862,62 @@ VOID TestCreateThreadCallback(
 VOID TestLoadImageCallback(
 	_In_opt_ PUNICODE_STRING FullImageName,
 	_In_ HANDLE ProcessId,                // pid into which image is being mapped
-	_In_ PIMAGE_INFO ImageInfo ) {
+	_In_ PIMAGE_INFO ImageInfo) {
 	//DbgBreakPoint();
-	PrintLog( "LoadImageCallback called.\n" );
+	PrintLog("LoadImageCallback called.\n");
 }
 
+VOID TestInstallNotifyCallbacks() {
+	PsSetCreateProcessNotifyRoutine(TestCreateProcessCallback, FALSE);
+	PsSetCreateProcessNotifyRoutineEx(TestCreateProcessCallbackEx, FALSE);
+	PsSetCreateThreadNotifyRoutine(TestCreateThreadCallback);
+	PsSetLoadImageNotifyRoutine(TestLoadImageCallback);
+}
+
+VOID TestRemoveNotifyCallbacks() {
+	PsSetCreateProcessNotifyRoutine(TestCreateProcessCallback, TRUE);
+	PsSetCreateProcessNotifyRoutineEx(TestCreateProcessCallbackEx, TRUE);
+	PsRemoveCreateThreadNotifyRoutine(TestCreateThreadCallback);
+	PsRemoveLoadImageNotifyRoutine(TestLoadImageCallback);
+}
 
 PVOID GetCreateProcessCallbackArray() {
 	PVOID pPsSetCreateProcessNotifyRoutine = NULL;
 	PVOID pPspSetCreateProcessNotifyRoutine;
 	PVOID pPatterStart = NULL;
 	PVOID pProcessCallbackArray = NULL;		// nt!PspCreateProcessNotifyRoutine
-	ULONG patternSize = sizeof( ProcessCallbackArrayPattern );
+	ULONG patternSize = sizeof(ProcessCallbackArrayPattern);
 	BOOLEAN found = FALSE;
 	ULONG offset = 0;
 	LONG_PTR relativeOffset = 0;
 	DbgBreakPoint();
 
-	pPsSetCreateProcessNotifyRoutine = MmGetSystemRoutineAddress( &uPsSetCreateProcessNotifyRoutine );
-	if ( pPsSetCreateProcessNotifyRoutine == NULL ) {
-		PrintLog( "Get address of PsSetCreateProcessNotifyRoutine failed.\n" );
+	pPsSetCreateProcessNotifyRoutine = MmGetSystemRoutineAddress(&uPsSetCreateProcessNotifyRoutine);
+	if (pPsSetCreateProcessNotifyRoutine == NULL) {
+		PrintLog("Get address of PsSetCreateProcessNotifyRoutine failed.\n");
 		return NULL;
 	}
 
-	relativeOffset = *(PLONG_PTR)( (PUCHAR)pPsSetCreateProcessNotifyRoutine + 4 );
+	relativeOffset = *(PLONG_PTR)((PUCHAR)pPsSetCreateProcessNotifyRoutine + 4);
 	relativeOffset |= 0xFFFFFFFF00000000;
-	pPspSetCreateProcessNotifyRoutine = (PVOID)( relativeOffset + (LONG_PTR)( (PUCHAR)pPsSetCreateProcessNotifyRoutine + 8 ) );
+	pPspSetCreateProcessNotifyRoutine = (PVOID)(relativeOffset + (LONG_PTR)((PUCHAR)pPsSetCreateProcessNotifyRoutine + 8));
 
 	// Start searching for pattern 
-	for ( ; offset < 1000; offset++ ) {
-		if ( RtlCompareMemory( ( (PUCHAR)pPspSetCreateProcessNotifyRoutine + offset ), ProcessCallbackArrayPattern, patternSize ) == patternSize ) {
+	for (; offset < 1000; offset++) {
+		if (RtlCompareMemory(((PUCHAR)pPspSetCreateProcessNotifyRoutine + offset), ProcessCallbackArrayPattern, patternSize) == patternSize) {
 			found = TRUE;
 			break;
 		}
 	}
-	if ( !found ) {
-		PrintLog( "Get address of PspCreateProcessNotifyRoutine failed.\n" );
+	if (!found) {
+		PrintLog("Get address of PspCreateProcessNotifyRoutine failed.\n");
 		return NULL;
 	}
 
 	DbgBreakPoint();
-	relativeOffset = *(PLONG_PTR)( (PUCHAR)pPspSetCreateProcessNotifyRoutine + offset + patternSize );
+	relativeOffset = *(PLONG_PTR)((PUCHAR)pPspSetCreateProcessNotifyRoutine + offset + patternSize);
 	relativeOffset |= 0xFFFFFFFF00000000;
-	pProcessCallbackArray = (PVOID)( relativeOffset + (LONG_PTR)( (PUCHAR)pPspSetCreateProcessNotifyRoutine + offset + patternSize + 4 ) );
+	pProcessCallbackArray = (PVOID)(relativeOffset + (LONG_PTR)((PUCHAR)pPspSetCreateProcessNotifyRoutine + offset + patternSize + 4));
 
 	return pProcessCallbackArray;
 }
@@ -910,32 +926,32 @@ PVOID GetCreateThreadCallbackArray() {
 	PVOID pPsSetCreateThreadNotifyRoutine = NULL;
 	PVOID pPspCreateThreadNotifyRoutine = NULL;
 	PVOID pThreadCallbackArray = NULL;
-	ULONG patternSize = sizeof( ThreadCallbackArrayPattern );
+	ULONG patternSize = sizeof(ThreadCallbackArrayPattern);
 	LONG relativeOffset = 0;
 
 	BOOLEAN found = FALSE;
 	ULONG offset = 0;
 
-	pPsSetCreateThreadNotifyRoutine = MmGetSystemRoutineAddress( &uPsSetCreateThreadNotifyRoutine );
-	if ( !pPsSetCreateThreadNotifyRoutine ) {
-		PrintLog( "Get address of PsSetCreateThreadNotifyRoutine failed.\n" );
+	pPsSetCreateThreadNotifyRoutine = MmGetSystemRoutineAddress(&uPsSetCreateThreadNotifyRoutine);
+	if (!pPsSetCreateThreadNotifyRoutine) {
+		PrintLog("Get address of PsSetCreateThreadNotifyRoutine failed.\n");
 		return NULL;
 	}
 
 	DbgBreakPoint();
-	for ( ; offset < 1000; offset++ ) {
-		if ( RtlCompareMemory( ( (PUCHAR)pPsSetCreateThreadNotifyRoutine + offset ), ThreadCallbackArrayPattern, patternSize ) == patternSize ) {
+	for (; offset < 1000; offset++) {
+		if (RtlCompareMemory(((PUCHAR)pPsSetCreateThreadNotifyRoutine + offset), ThreadCallbackArrayPattern, patternSize) == patternSize) {
 			found = TRUE;
 			break;
 		}
 	}
-	if ( !found ) {
-		PrintLog( "Get address of PspCreateThreadNotifyRoutine failed.\n" );
+	if (!found) {
+		PrintLog("Get address of PspCreateThreadNotifyRoutine failed.\n");
 		return NULL;
 	}
 
-	relativeOffset = *(PLONG)( (PUCHAR)pPsSetCreateThreadNotifyRoutine + offset + patternSize );
-	pPspCreateThreadNotifyRoutine = (PVOID)( (LONG_PTR)relativeOffset + (LONG_PTR)( (PUCHAR)pPsSetCreateThreadNotifyRoutine + offset + patternSize + 4 ) );
+	relativeOffset = *(PLONG)((PUCHAR)pPsSetCreateThreadNotifyRoutine + offset + patternSize);
+	pPspCreateThreadNotifyRoutine = (PVOID)((LONG_PTR)relativeOffset + (LONG_PTR)((PUCHAR)pPsSetCreateThreadNotifyRoutine + offset + patternSize + 4));
 
 	return pPspCreateThreadNotifyRoutine;
 }
@@ -944,38 +960,38 @@ PVOID GetLoadImageCallbackArray() {
 	PVOID pPspLoadImageNotifyRoutine = NULL;
 	PVOID pPsSetLoadImageNotifyRoutine = NULL;
 	PVOID pImageCallbackArray = NULL;
-	UCHAR patternSize = sizeof( ImageCallbackArrayPattern );
+	UCHAR patternSize = sizeof(ImageCallbackArrayPattern);
 	LONG relativeOffset = 0;
 
 	BOOLEAN found = FALSE;
 	ULONG offset = 0;
 
-	pPsSetLoadImageNotifyRoutine = MmGetSystemRoutineAddress( &uPsSetLoadImageNotifyRoutine );
-	if ( !pPsSetLoadImageNotifyRoutine ) {
-		PrintLog( "Get address of PsSetLoadImageNotifyRoutine failed." );
+	pPsSetLoadImageNotifyRoutine = MmGetSystemRoutineAddress(&uPsSetLoadImageNotifyRoutine);
+	if (!pPsSetLoadImageNotifyRoutine) {
+		PrintLog("Get address of PsSetLoadImageNotifyRoutine failed.");
 		return NULL;
 	}
 
 	DbgBreakPoint();
-	for ( ; offset < 1000; offset++ ) {
-		if ( RtlCompareMemory( ( (PUCHAR)pPsSetLoadImageNotifyRoutine + offset ), ImageCallbackArrayPattern, patternSize ) == patternSize ) {
+	for (; offset < 1000; offset++) {
+		if (RtlCompareMemory(((PUCHAR)pPsSetLoadImageNotifyRoutine + offset), ImageCallbackArrayPattern, patternSize) == patternSize) {
 			found = TRUE;
 			break;
 		}
 	}
-	if ( !found ) {
-		PrintLog( "Get address of PspLoadImageNotifyRoutine failed.\n" );
+	if (!found) {
+		PrintLog("Get address of PspLoadImageNotifyRoutine failed.\n");
 		return NULL;
 	}
 
-	relativeOffset = *(PLONG)( (PUCHAR)pPsSetLoadImageNotifyRoutine + offset + patternSize );
-	pPspLoadImageNotifyRoutine = (PVOID)( (LONG_PTR)relativeOffset + (LONG_PTR)pPsSetLoadImageNotifyRoutine + offset + patternSize + 4 );
+	relativeOffset = *(PLONG)((PUCHAR)pPsSetLoadImageNotifyRoutine + offset + patternSize);
+	pPspLoadImageNotifyRoutine = (PVOID)((LONG_PTR)relativeOffset + (LONG_PTR)pPsSetLoadImageNotifyRoutine + offset + patternSize + 4);
 
 	return pPspLoadImageNotifyRoutine;
 }
 
 
-PVOID GetNotifyCallbackArray( ULONG CallbackType ) {
+PVOID GetNotifyCallbackArray(ULONG CallbackType) {
 	PVOID pCallbackArray = NULL;
 	PVOID pSetNotifyRoutine = NULL;
 	PVOID pPatternStart = NULL;
@@ -983,64 +999,64 @@ PVOID GetNotifyCallbackArray( ULONG CallbackType ) {
 	PUNICODE_STRING pSetNotifyRoutineName = NULL;
 	ULONG patternSize = 0;
 
-	switch ( CallbackType ) {
-		case ProcessNotifyCallback:
-			pSetNotifyRoutineName = &uPsSetCreateProcessNotifyRoutine;
-			pCallbackArrayPattern = ProcessCallbackArrayPattern;
-			patternSize = sizeof( ProcessCallbackArrayPattern );
-			break;
-		case ThreadNotifyCallback:
-			pSetNotifyRoutineName = &uPsSetCreateThreadNotifyRoutine;
-			pCallbackArrayPattern = ThreadCallbackArrayPattern;
-			patternSize = sizeof( ThreadCallbackArrayPattern );
-			break;
-		case ImageNotifyCallback:
-			pSetNotifyRoutineName = &uPsSetLoadImageNotifyRoutine;
-			pCallbackArrayPattern = ImageCallbackArrayPattern;
-			patternSize = sizeof( ImageCallbackArrayPattern );
-			break;
-		default:
-			break;
+	switch (CallbackType) {
+	case ProcessNotifyCallback:
+		pSetNotifyRoutineName = &uPsSetCreateProcessNotifyRoutine;
+		pCallbackArrayPattern = ProcessCallbackArrayPattern;
+		patternSize = sizeof(ProcessCallbackArrayPattern);
+		break;
+	case ThreadNotifyCallback:
+		pSetNotifyRoutineName = &uPsSetCreateThreadNotifyRoutine;
+		pCallbackArrayPattern = ThreadCallbackArrayPattern;
+		patternSize = sizeof(ThreadCallbackArrayPattern);
+		break;
+	case ImageNotifyCallback:
+		pSetNotifyRoutineName = &uPsSetLoadImageNotifyRoutine;
+		pCallbackArrayPattern = ImageCallbackArrayPattern;
+		patternSize = sizeof(ImageCallbackArrayPattern);
+		break;
+	default:
+		break;
 	}
 
-	pSetNotifyRoutine = MmGetSystemRoutineAddress( pSetNotifyRoutineName );
-	if ( !pSetNotifyRoutine ) {
-		DPRINT( "Get XXSetNotifyRoutine failed.\n" );
+	pSetNotifyRoutine = MmGetSystemRoutineAddress(pSetNotifyRoutineName);
+	if (!pSetNotifyRoutine) {
+		DPRINT("Get XXSetNotifyRoutine failed.\n");
 		return NULL;
 	}
 
-	if ( CallbackType == ProcessNotifyCallback ) {
+	if (CallbackType == ProcessNotifyCallback) {
 		// PsSetCreateProcessNotifyRoutine and Ex all just jump to internal function nt!PspSetCreateProcessNotifyRoutine
 		// So need to get its address first before searching patterns
-		pSetNotifyRoutine = GetAddressFromRelative( (PUCHAR)pSetNotifyRoutine + 4 );
+		pSetNotifyRoutine = GetAddressFromRelative((PUCHAR)pSetNotifyRoutine + 4);
 	}
 
 	// Start searching for pattern
-	pPatternStart = SearchPattern( pSetNotifyRoutine, MAX_SEARCH_SIZE, pCallbackArrayPattern, patternSize );
-	if ( !pPatternStart ) {
-		DPRINT( "Get callback array pattern failed.\n" );
+	pPatternStart = SearchPattern(pSetNotifyRoutine, MAX_SEARCH_SIZE, pCallbackArrayPattern, patternSize);
+	if (!pPatternStart) {
+		DPRINT("Get callback array pattern failed.\n");
 		return NULL;
 	}
 
-	pCallbackArray = GetAddressFromRelative( (PUCHAR)pPatternStart + patternSize );
+	pCallbackArray = GetAddressFromRelative((PUCHAR)pPatternStart + patternSize);
 
 	return pCallbackArray;
 }
 
-VOID EnumNotifyCallbackArray( PVOID CallbackArray, ULONG CallbackType ) {
+VOID EnumNotifyCallbackArray(PVOID CallbackArray, ULONG CallbackType) {
 	ULONG count = 0;
-	ULONG maxCount = ( CallbackType == ImageNotifyCallback ) ? MAX_IMAGE_CALLBACKS : MAX_PROCESS_CALLBACKS;
+	ULONG maxCount = (CallbackType == ImageNotifyCallback) ? MAX_IMAGE_CALLBACKS : MAX_PROCESS_CALLBACKS;
 	PEX_CALLBACK_BLOCK pCallbackEntry = NULL;
 
-	for ( ; count < maxCount; count++ ) {
-		pCallbackEntry = (PEX_CALLBACK_BLOCK)( (PULONG_PTR)CallbackArray )[count];
-		pCallbackEntry = (PEX_CALLBACK_BLOCK)( (ULONG_PTR)pCallbackEntry & 0xFFFFFFFFFFFFFFF0 );	// clean the four less significant bits
-		if ( !pCallbackEntry )	continue;
+	for (; count < maxCount; count++) {
+		pCallbackEntry = (PEX_CALLBACK_BLOCK)((PULONG_PTR)CallbackArray)[count];
+		pCallbackEntry = (PEX_CALLBACK_BLOCK)((ULONG_PTR)pCallbackEntry & 0xFFFFFFFFFFFFFFF0);	// clean the four less significant bits
+		if (!pCallbackEntry)	continue;
 
-		PrintLog( "Callback %d :\n"
+		PrintLog("Callback %d :\n"
 			"\tCallbackRoutine: %p\n"
 			"\tExFlags: %d\n",
-			count, pCallbackEntry->CallbackRoutine, pCallbackEntry->Context );
+			count, pCallbackEntry->CallbackRoutine, pCallbackEntry->Context);
 	}
 }
 
@@ -1051,35 +1067,35 @@ VOID EnumNotifyCallbacks() {
 
 	DbgBreakPoint();
 	// Enum thread callbacks
-	pThreadCallbackArray = GetNotifyCallbackArray( ThreadNotifyCallback );
-	if ( !pThreadCallbackArray ) {
-		DPRINT( "Cannot get thread callback array.\n" );
+	pThreadCallbackArray = GetNotifyCallbackArray(ThreadNotifyCallback);
+	if (!pThreadCallbackArray) {
+		DPRINT("Cannot get thread callback array.\n");
 		return;
 	}
 
-	PrintLog( "\n============== Thread callback list ================\n" );
-	EnumNotifyCallbackArray( pThreadCallbackArray, ThreadNotifyCallback );
+	PrintLog("\n============== Thread callback list ================\n");
+	EnumNotifyCallbackArray(pThreadCallbackArray, ThreadNotifyCallback);
 
 	DbgBreakPoint();
 	// Enum process callbacks
-	pProcessCallbackArray = GetNotifyCallbackArray( ProcessNotifyCallback );
-	if ( !pProcessCallbackArray ) {
-		DPRINT( "Cannot get process callback array.\n" );
+	pProcessCallbackArray = GetNotifyCallbackArray(ProcessNotifyCallback);
+	if (!pProcessCallbackArray) {
+		DPRINT("Cannot get process callback array.\n");
 		return;
 	}
 
-	PrintLog( "\n============== Image callback list ================\n" );
-	EnumNotifyCallbackArray( pProcessCallbackArray, ProcessNotifyCallback );
+	PrintLog("\n============== Image callback list ================\n");
+	EnumNotifyCallbackArray(pProcessCallbackArray, ProcessNotifyCallback);
 
 	DbgBreakPoint();
 	// Enum image callbacks
-	pImageCallbackArray = GetNotifyCallbackArray( ImageNotifyCallback );
-	if ( !pImageCallbackArray ) {
-		DPRINT( "Cannot get image callback array.\n" );
+	pImageCallbackArray = GetNotifyCallbackArray(ImageNotifyCallback);
+	if (!pImageCallbackArray) {
+		DPRINT("Cannot get image callback array.\n");
 		return;
 	}
-	PrintLog( "\n============== Process callback list ================\n" );
-	EnumNotifyCallbackArray( pImageCallbackArray, ImageNotifyCallback );
+	PrintLog("\n============== Process callback list ================\n");
+	EnumNotifyCallbackArray(pImageCallbackArray, ImageNotifyCallback);
 
 }
 
@@ -1087,21 +1103,21 @@ PVOID GetNotifyMask() {
 	PVOID pSetLoadImageNotifyRoutine = NULL;
 	PVOID pNotifyMask = NULL;
 	PVOID pPatternStart = NULL;
-	ULONG patternSize = sizeof( NotifyMaskPattern );
+	ULONG patternSize = sizeof(NotifyMaskPattern);
 
-	pSetLoadImageNotifyRoutine = MmGetSystemRoutineAddress( &uPsSetLoadImageNotifyRoutine );
-	if ( !pSetLoadImageNotifyRoutine ) {
-		DPRINT( "Get address of PsSetLoadImageNotifyRoutine failed.\n" );
+	pSetLoadImageNotifyRoutine = MmGetSystemRoutineAddress(&uPsSetLoadImageNotifyRoutine);
+	if (!pSetLoadImageNotifyRoutine) {
+		DPRINT("Get address of PsSetLoadImageNotifyRoutine failed.\n");
 		return NULL;
 	}
 
-	pPatternStart = SearchPattern( pSetLoadImageNotifyRoutine, MAX_SEARCH_SIZE, NotifyMaskPattern, patternSize );
-	if ( !pPatternStart ) {
-		DPRINT( "Get notify mask pattern failed.\n" );
+	pPatternStart = SearchPattern(pSetLoadImageNotifyRoutine, MAX_SEARCH_SIZE, NotifyMaskPattern, patternSize);
+	if (!pPatternStart) {
+		DPRINT("Get notify mask pattern failed.\n");
 		return NULL;
 	}
 
-	pNotifyMask = GetAddressFromRelative( (PUCHAR)pPatternStart + patternSize );
+	pNotifyMask = GetAddressFromRelative((PUCHAR)pPatternStart + patternSize);
 	return pNotifyMask;
 }
 
@@ -1119,64 +1135,64 @@ PsSetCreateProcessNotifyRoutineEx: bit 2
 PsSetCreateThreadNotifyRoutine: bit 3
 =====================================
 */
-BOOLEAN DisableNotifyCallback( ULONG CallbackType ) {
+BOOLEAN DisableNotifyCallback(ULONG CallbackType) {
 	PVOID pNotifyMask = NULL;
 	BOOLEAN isOk = TRUE;
 
 	pNotifyMask = GetNotifyMask();
-	if ( !pNotifyMask ) {
-		DPRINT( "Get PspNotifyEnableMask failed.\n" );
+	if (!pNotifyMask) {
+		DPRINT("Get PspNotifyEnableMask failed.\n");
 		return FALSE;
 	}
 
 	DbgBreakPoint();
 	// Clean bits
-	switch ( CallbackType ) {
-		case ProcessNotifyCallback:
-			InterlockedBitTestAndReset( pNotifyMask, 1 );
-			InterlockedBitTestAndReset( pNotifyMask, 2 );
-			break;
-		case ThreadNotifyCallback:
-			InterlockedBitTestAndReset( pNotifyMask, 3 );
-			break;
-		case ImageNotifyCallback:
-			InterlockedBitTestAndReset( pNotifyMask, 0 );
-			break;
-		default:
-			isOk = FALSE;
+	switch (CallbackType) {
+	case ProcessNotifyCallback:
+		InterlockedBitTestAndReset(pNotifyMask, 1);
+		InterlockedBitTestAndReset(pNotifyMask, 2);
+		break;
+	case ThreadNotifyCallback:
+		InterlockedBitTestAndReset(pNotifyMask, 3);
+		break;
+	case ImageNotifyCallback:
+		InterlockedBitTestAndReset(pNotifyMask, 0);
+		break;
+	default:
+		isOk = FALSE;
 	}
 
 	return isOk;
 }
 
-PVOID GetKernelBase2( PULONG NtosSize ) {
+PVOID GetKernelBase2(PULONG NtosSize) {
 	PVOID pMmGetSystemRoutineAddress = NULL;
 	PVOID* pNtosBase = NULL;
 	PVOID pPatternStart = NULL;
-	ULONG patternSize = sizeof( NtosBasePattern );
+	ULONG patternSize = sizeof(NtosBasePattern);
 	PIMAGE_NT_HEADERS pNtosHeader = NULL;
 
 	DbgBreakPoint();
-	pMmGetSystemRoutineAddress = MmGetSystemRoutineAddress( &uNameMmGetSystemRoutineAddress );
-	if ( !pMmGetSystemRoutineAddress ) {
-		DPRINT( "Get address of MmGetSystemRoutineAddress failed.\n" );
+	pMmGetSystemRoutineAddress = MmGetSystemRoutineAddress(&uNameMmGetSystemRoutineAddress);
+	if (!pMmGetSystemRoutineAddress) {
+		DPRINT("Get address of MmGetSystemRoutineAddress failed.\n");
 		return NULL;
 	}
 
-	pPatternStart = SearchPattern( pMmGetSystemRoutineAddress, MAX_SEARCH_SIZE, NtosBasePattern, patternSize );
-	if ( !pPatternStart ) {
-		DPRINT( "NtosBase pattern not found!.\n" );
+	pPatternStart = SearchPattern(pMmGetSystemRoutineAddress, MAX_SEARCH_SIZE, NtosBasePattern, patternSize);
+	if (!pPatternStart) {
+		DPRINT("NtosBase pattern not found!.\n");
 		return NULL;
 	}
 
-	pNtosBase = GetAddressFromRelative( (PUCHAR)pPatternStart + patternSize );
-	pNtosHeader = RtlImageNtHeader( *pNtosBase );
-	if ( !pNtosHeader ) {
-		DPRINT( "Bad ntos base, cannot get nt headers.\n" );
+	pNtosBase = GetAddressFromRelative((PUCHAR)pPatternStart + patternSize);
+	pNtosHeader = RtlImageNtHeader(*pNtosBase);
+	if (!pNtosHeader) {
+		DPRINT("Bad ntos base, cannot get nt headers.\n");
 		return NULL;
 	}
 
-	if ( NtosSize )
+	if (NtosSize)
 		*NtosSize = pNtosHeader->OptionalHeader.SizeOfImage;
 
 	return *pNtosBase;
@@ -1185,11 +1201,11 @@ PVOID GetKernelBase2( PULONG NtosSize ) {
 OB_PREOP_CALLBACK_STATUS
 TestPreOperationCallback(
 	_In_ PVOID RegistrationContext,
-	_Inout_ POB_PRE_OPERATION_INFORMATION PreInfo){
-	if ( PreInfo->ObjectType == *PsProcessType )
-		PrintLog( "Process ObPreOperation callback called.\n" );
-	else if ( PreInfo->ObjectType == *PsThreadType )
-		PrintLog( "Thread ObPreOperation Callback called.\n" );
+	_Inout_ POB_PRE_OPERATION_INFORMATION PreInfo) {
+	if (PreInfo->ObjectType == *PsProcessType)
+		PrintLog("Process ObPreOperation callback called.\n");
+	else if (PreInfo->ObjectType == *PsThreadType)
+		PrintLog("Thread ObPreOperation Callback called.\n");
 	return OB_PREOP_SUCCESS;
 }
 
@@ -1197,10 +1213,10 @@ VOID
 TestPostOperationCallback(
 	_In_	PVOID RegistrationContext,
 	_Inout_	POB_POST_OPERATION_INFORMATION	PostInfo) {
-	if ( PostInfo->ObjectType == *PsProcessType )
-		PrintLog( "Process ObPostOperation callback called.\n" );
-	else if ( PostInfo->ObjectType == *PsThreadType )
-		PrintLog( "Thread ObPostOperatoin callback called.\n" );
+	if (PostInfo->ObjectType == *PsProcessType)
+		PrintLog("Process ObPostOperation callback called.\n");
+	else if (PostInfo->ObjectType == *PsThreadType)
+		PrintLog("Thread ObPostOperatoin callback called.\n");
 	return;
 }
 
@@ -1264,7 +1280,7 @@ VOID EnumObCallback(ULONG CallbackType) {
 	PLIST_ENTRY callbackListHead = NULL;
 	ULONG count = 0;
 
-	switch (CallbackType){
+	switch (CallbackType) {
 	case ProcessObjectCallback:
 		pObject = *PsProcessType;
 		break;
@@ -1314,40 +1330,40 @@ VOID EnumObCallbacks() {
 	EnumObCallback(ThreadObjectCallback);
 }
 
-BOOLEAN DisableObCallback( ULONG CallbackType ) {
+BOOLEAN DisableObCallback(ULONG CallbackType) {
 	POBJECT_TYPE pObject = NULL;
 	POB_CALLBACK_ENTRY callbackEntry = NULL;
 	PLIST_ENTRY nextEntry = NULL;
 	PLIST_ENTRY callbackListHead = NULL;
 	ULONG count = 0;
 
-	switch ( CallbackType ) {
-		case ProcessObjectCallback:
-			pObject = *PsProcessType;
-			break;
-		case ThreadObjectCallback:
-			pObject = *PsThreadType;
-			break;
-		case DesktopObjectCallback:
-			pObject = *ExDesktopObjectType;
-			break;
-		default:
-			break;
+	switch (CallbackType) {
+	case ProcessObjectCallback:
+		pObject = *PsProcessType;
+		break;
+	case ThreadObjectCallback:
+		pObject = *PsThreadType;
+		break;
+	case DesktopObjectCallback:
+		pObject = *ExDesktopObjectType;
+		break;
+	default:
+		break;
 	}
 
-	if ( !pObject ) {
-		DPRINT( "Unsupported object type!\n" );
+	if (!pObject) {
+		DPRINT("Unsupported object type!\n");
 		return FALSE;
 	}
 
 	DbgBreakPoint();
 	callbackListHead = &pObject->CallbackList;
 	nextEntry = callbackListHead->Flink;
-	while ( nextEntry != callbackListHead ) {
+	while (nextEntry != callbackListHead) {
 		DbgBreakPoint();
-		callbackEntry = CONTAINING_RECORD( nextEntry, OB_CALLBACK_ENTRY, EntryItemList );
+		callbackEntry = CONTAINING_RECORD(nextEntry, OB_CALLBACK_ENTRY, EntryItemList);
 		// Clear magic bit so callback will not get called.
-		InterlockedAnd64( &callbackEntry->Operations, 0x00000000FFFFFFFF );
+		InterlockedAnd64((volatile LONG64*)&callbackEntry->Operations, 0x00000000FFFFFFFF);
 		nextEntry = nextEntry->Flink;
 	}
 
@@ -1357,20 +1373,89 @@ BOOLEAN DisableObCallback( ULONG CallbackType ) {
 NTSTATUS TestRegistryCallback(
 	PVOID CallbackContext,
 	PVOID Argument1,
-	PVOID Argument2 ) {
-	DbgBreakPoint();
-	PrintLog( "Registr callback got called.\n" );
+	PVOID Argument2) {
+	//DbgBreakPoint();
+	//PrintLog("Registr callback got called.\n");
 	return STATUS_SUCCESS;
 }
 
 VOID TestRegisterCmCallbacks() {
 	NTSTATUS status;
-
-	status = CmRegisterCallbackEx( TestRegistryCallback, &CallbackAltitude, pDriverObject, NULL, &CmCookie, NULL );
-	if ( !NT_SUCCESS( status ) )
-		DPRINT( "Register registry callback failed. status=0x", status );
+	DbgBreakPoint();
+	status = CmRegisterCallbackEx(TestRegistryCallback, &CallbackAltitude, pDriverObject, NULL, &CmCookie, NULL);
+	if (!NT_SUCCESS(status))
+		DPRINT("Register registry callback failed. status=0x", status);
 }
 
 VOID TestUnRegisterCmCallbacks() {
-	CmUnRegisterCallback( CmCookie );
+	CmUnRegisterCallback(CmCookie);
+}
+
+VOID TestRegistryEvents() {
+	UNICODE_STRING keyPath = RTL_CONSTANT_STRING(L"\\Registry\\User");
+	OBJECT_ATTRIBUTES regAttr = { 0 };
+	PHANDLE keyHandle = NULL;
+	NTSTATUS status;
+
+	InitializeObjectAttributes(&regAttr, &keyPath, OBJ_KERNEL_HANDLE, NULL, NULL);
+
+	status = ZwOpenKey(keyHandle, KEY_ALL_ACCESS, &regAttr);
+	if (!NT_SUCCESS(status)) {
+		DPRINT("Open key failed. status=%x\n", status);
+		return;
+	}
+
+	ZwClose(keyHandle);
+}
+
+PVOID GetCmCallbackList() {
+	PVOID pCmCallbackList = NULL;
+	PVOID pCmUnregisterCallbacks = NULL;
+	PVOID pPatternStart = NULL;
+	ULONG_PTR patternSize = sizeof(CmCallbackListPattern);
+	DbgBreakPoint();
+	pCmUnregisterCallbacks = MmGetSystemRoutineAddress(&uNameCmUnregisterCallbacks);
+	if (!pCmUnregisterCallbacks) {
+		DPRINT("Get address of %wZ failed.\n", uNameCmUnregisterCallbacks);
+		return NULL;
+	}
+
+	pPatternStart = SearchPattern(pCmUnregisterCallbacks, MAX_SEARCH_SIZE, CmCallbackListPattern, patternSize);
+	if (!pPatternStart) {
+		DPRINT("Search CmCallbackList pattern failed.\n");
+		return NULL;
+	}
+
+	pCmCallbackList = GetAddressFromRelative((PUCHAR)pPatternStart + patternSize);
+
+	return pCmCallbackList;
+
+}
+
+VOID EnumCmCallbacks() {
+	PLIST_ENTRY pCmCallbackList = NULL;
+	PLIST_ENTRY nextEntry = NULL;
+	PCM_CALLBACK_BLOCK callbackEntry = NULL;
+	ULONG count = 0;
+
+	DbgBreakPoint();
+	pCmCallbackList = (PLIST_ENTRY)GetCmCallbackList();
+	if (!pCmCallbackList) {
+		DPRINT("Get CmCallbackList failed.\n");
+		return;
+	}
+
+	nextEntry = pCmCallbackList->Flink;
+	PrintLog("\n============== cm callback list ================\n");
+	while (nextEntry != pCmCallbackList) {
+		callbackEntry = CONTAINING_RECORD(nextEntry, CM_CALLBACK_BLOCK, CallbackList);
+		PrintLog(
+			"CmCallback %d:\n"
+			"\tCookie: %p\n"
+			"\tCallbackFunction: %p\n"
+			"\tContext: %p\n"
+			"\tAltitue: %wZ\n",
+			count++, callbackEntry->Cookie, callbackEntry->CallbackFunction, callbackEntry->Context, callbackEntry->Altitude);
+		nextEntry = nextEntry->Flink;
+	}
 }
