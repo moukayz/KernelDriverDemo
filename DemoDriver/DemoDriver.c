@@ -108,6 +108,7 @@ VOID EnumObCallbacks();
 VOID EnumObCallback(ULONG CallbackType);
 VOID TestUnregisterObCallbacks();
 BOOLEAN TestRegisterObCallbacks();
+BOOLEAN DisableObCallback( ULONG CallbackType );
 
 //
 // Get ntos kernel base
@@ -148,6 +149,8 @@ VOID DriverTest() {
 	PsSetLoadImageNotifyRoutine( TestLoadImageCallback );
 	TestRegisterObCallbacks();
 	EnumObCallbacks();
+	DisableObCallback(ProcessObjectCallback);
+	DisableObCallback( ThreadObjectCallback );
 	/*EnumNotifyCallbacks();
 	GetNotifyMask();*/
 	//DisableNotifyCallback(ProcessNotifyCallback);
@@ -1169,6 +1172,10 @@ OB_PREOP_CALLBACK_STATUS
 TestPreOperationCallback(
 	_In_ PVOID RegistrationContext,
 	_Inout_ POB_PRE_OPERATION_INFORMATION PreInfo){
+	if ( PreInfo->ObjectType == *PsProcessType )
+		PrintLog( "Process ObPreOperation callback called.\n" );
+	else if ( PreInfo->ObjectType == *PsThreadType )
+		PrintLog( "Thread ObPreOperation Callback called.\n" );
 	return OB_PREOP_SUCCESS;
 }
 
@@ -1176,6 +1183,10 @@ VOID
 TestPostOperationCallback(
 	_In_	PVOID RegistrationContext,
 	_Inout_	POB_POST_OPERATION_INFORMATION	PostInfo) {
+	if ( PostInfo->ObjectType == *PsProcessType )
+		PrintLog( "Process ObPostOperation callback called.\n" );
+	else if ( PostInfo->ObjectType == *PsThreadType )
+		PrintLog( "Thread ObPostOperatoin callback called.\n" );
 	return;
 }
 
@@ -1211,6 +1222,7 @@ BOOLEAN TestRegisterObCallbacks() {
 	callbackRegistration.Altitude = altitude;
 	callbackRegistration.OperationRegistration = opRegistration;
 
+	DbgBreakPoint();
 	status = ObRegisterCallbacks(
 		&callbackRegistration,
 		&pRegistrationHandle);
@@ -1287,4 +1299,43 @@ VOID EnumObCallbacks() {
 
 	PrintLog("========= Thread ob callback ========\n");
 	EnumObCallback(ThreadObjectCallback);
+}
+
+BOOLEAN DisableObCallback( ULONG CallbackType ) {
+	POBJECT_TYPE pObject = NULL;
+	POB_CALLBACK_ENTRY callbackEntry = NULL;
+	PLIST_ENTRY nextEntry = NULL;
+	PLIST_ENTRY callbackListHead = NULL;
+	ULONG count = 0;
+
+	switch ( CallbackType ) {
+		case ProcessObjectCallback:
+			pObject = *PsProcessType;
+			break;
+		case ThreadObjectCallback:
+			pObject = *PsThreadType;
+			break;
+		case DesktopObjectCallback:
+			pObject = *ExDesktopObjectType;
+			break;
+		default:
+			break;
+	}
+
+	if ( !pObject ) {
+		DPRINT( "Unsupported object type!\n" );
+		return FALSE;
+	}
+
+	DbgBreakPoint();
+	callbackListHead = &pObject->CallbackList;
+	nextEntry = callbackListHead->Flink;
+	while ( nextEntry != callbackListHead ) {
+		DbgBreakPoint();
+		callbackEntry = CONTAINING_RECORD( nextEntry, OB_CALLBACK_ENTRY, EntryItemList );
+		callbackEntry->Operations = callbackEntry->Operations & 0x00000000FFFFFFFF;
+		nextEntry = nextEntry->Flink;
+	}
+
+	return TRUE;
 }
