@@ -385,6 +385,16 @@ typedef struct _OBJECT_TYPE {
 	LIST_ENTRY CallbackList;
 }OBJECT_TYPE, *POBJECT_TYPE;
 
+typedef struct _CM_CALLBACK_BLOCK {
+	LIST_ENTRY CallbackList;
+	ULONG unknown;
+	ULONG_PTR Cookie;
+	PVOID Context;
+	PVOID CallbackFunction;
+	UNICODE_STRING Altitude;
+	LIST_ENTRY list2;
+}CM_CALLBACK_BLOCK, *PCM_CALLBACK_BLOCK;
+
 NTSYSAPI
 NTSTATUS
 NTAPI

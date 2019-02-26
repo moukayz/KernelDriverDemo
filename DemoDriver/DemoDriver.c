@@ -18,6 +18,11 @@ CONST UCHAR ThreadCallbackArrayPattern[] = { 0xeb, 0x4a, 0x33, 0xdb ,0x48 ,0x8d,
 CONST UCHAR ImageCallbackArrayPattern[] = { 0xeb ,0x4a ,0x33 ,0xdb,0x48, 0x8d ,0x0d };
 CONST UCHAR NotifyMaskPattern[] = { 0xeb ,0xcc ,0xf0 ,0x83 ,0x05 ,0x8b ,0x99 ,0xd9 ,0xff ,0x01 ,0x8b ,0x05 };
 CONST UCHAR NtosBasePattern[] = { 0x0f, 0x88 ,0xeb ,0xf1, 0x00, 0x00 ,0x48 ,0x8b ,0x54 ,0x24 ,0x28 ,0x48 ,0x8b ,0x0d };
+PVOID pDriverObject = NULL;
+PVOID pRegistrationHandle = NULL;
+LARGE_INTEGER CmCookie = { 0 };
+
+UNICODE_STRING CallbackAltitude = RTL_CONSTANT_STRING( L"1101" );
 
 //
 // Enum process APCs
@@ -109,6 +114,15 @@ VOID EnumObCallback(ULONG CallbackType);
 VOID TestUnregisterObCallbacks();
 BOOLEAN TestRegisterObCallbacks();
 BOOLEAN DisableObCallback( ULONG CallbackType );
+
+//
+// Enum registry callbacks registered by CmRegisterCallbacks
+//
+EX_CALLBACK_FUNCTION TestRegistryCallback;
+VOID TestRegisterCmCallbacks();
+VOID TestUnRegisterCmCallbacks();
+VOID EnumCmCallbacks();
+BOOLEAN DisableCmCallbacks();
 
 //
 // Get ntos kernel base
@@ -203,7 +217,7 @@ NTSTATUS DriverEntry(
 	}
 
 	deviceObject->Flags |= DO_BUFFERED_IO;
-	//DriverObject->DeviceObject = deviceObject;
+	pDriverObject = DriverObject;
 
 	DriverTest();
 
@@ -1190,7 +1204,6 @@ TestPostOperationCallback(
 	return;
 }
 
-PVOID pRegistrationHandle = NULL;
 BOOLEAN TestRegisterObCallbacks() {
 	NTSTATUS status;
 	OB_OPERATION_REGISTRATION opRegistration[2] = { 0 };
@@ -1333,9 +1346,31 @@ BOOLEAN DisableObCallback( ULONG CallbackType ) {
 	while ( nextEntry != callbackListHead ) {
 		DbgBreakPoint();
 		callbackEntry = CONTAINING_RECORD( nextEntry, OB_CALLBACK_ENTRY, EntryItemList );
-		callbackEntry->Operations = callbackEntry->Operations & 0x00000000FFFFFFFF;
+		// Clear magic bit so callback will not get called.
+		InterlockedAnd64( &callbackEntry->Operations, 0x00000000FFFFFFFF );
 		nextEntry = nextEntry->Flink;
 	}
 
 	return TRUE;
+}
+
+NTSTATUS TestRegistryCallback(
+	PVOID CallbackContext,
+	PVOID Argument1,
+	PVOID Argument2 ) {
+	DbgBreakPoint();
+	PrintLog( "Registr callback got called.\n" );
+	return STATUS_SUCCESS;
+}
+
+VOID TestRegisterCmCallbacks() {
+	NTSTATUS status;
+
+	status = CmRegisterCallbackEx( TestRegistryCallback, &CallbackAltitude, pDriverObject, NULL, &CmCookie, NULL );
+	if ( !NT_SUCCESS( status ) )
+		DPRINT( "Register registry callback failed. status=0x", status );
+}
+
+VOID TestUnRegisterCmCallbacks() {
+	CmUnRegisterCallback( CmCookie );
 }
