@@ -158,12 +158,18 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Callbacks.h" />
     <ClInclude Include="DemoDriver.h" />
+    <ClInclude Include="Inject.h" />
     <ClInclude Include="Internals.h" />
+    <ClInclude Include="Misc.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Callbacks.c" />
     <ClCompile Include="DemoDriver.c" />
     <ClCompile Include="Helper.c" />
+    <ClCompile Include="Inject.c" />
+    <ClCompile Include="Misc.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -30,12 +30,30 @@
     <ClInclude Include="Internals.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Callbacks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Inject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Misc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DemoDriver.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Helper.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Callbacks.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Inject.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Misc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

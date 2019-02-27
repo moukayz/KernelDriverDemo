@@ -1,3 +1,5 @@
+#pragma once
+
 #include <ntddk.h>
 #include <wdm.h>
 
@@ -349,7 +351,7 @@ typedef struct _SYSTEM_MODULE_ENTRY
 typedef struct _SYSTEM_MODULE_INFORMATION
 {
 	ULONG Count;
-	SYSTEM_MODULE_ENTRY Module[0];
+	SYSTEM_MODULE_ENTRY Module[1];
 } SYSTEM_MODULE_INFORMATION, *PSYSTEM_MODULE_INFORMATION;
 
 typedef struct _OB_CALLBACK_ENTRY {
