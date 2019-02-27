@@ -41,15 +41,15 @@ VOID DriverTest() {
 
 	// Enum CreateProcess/CreateThread/LoadImage notify routine
 	TestInstallNotifyCallbacks();
-	TestRegisterObCallbacks();
-	TestRegisterCmCallbacks();
-	TestRegistryEvents();
+	//TestRegisterObCallbacks();
+	//TestRegisterCmCallbacks();
+	//TestRegistryEvents();
 	//EnumCmCallbacks();
 	//EnumObCallbacks();
+	EnumNotifyCallbacks();
 	//DisableObCallback(ProcessObjectCallback);
 	//DisableObCallback( ThreadObjectCallback );
-	/*EnumNotifyCallbacks();
-	GetNotifyMask();*/
+	//GetNotifyMask();
 	//DisableNotifyCallback(ProcessNotifyCallback);
 	//DisableNotifyCallback(ThreadNotifyCallback);
 	//DisableNotifyCallback(ImageNotifyCallback);
@@ -59,8 +59,8 @@ VOID DriverTest() {
 
 VOID DriverTestClean() {
 	TestRemoveNotifyCallbacks();
-	TestUnregisterObCallbacks();
-	TestUnRegisterCmCallbacks();
+	//TestUnregisterObCallbacks();
+	//TestUnRegisterCmCallbacks();
 }
 
 NTSTATUS DriverEntry(

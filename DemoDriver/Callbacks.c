@@ -184,7 +184,6 @@ PVOID GetLoadImageCallbackArray() {
 PVOID GetNotifyCallbackArray( ULONG CallbackType ) {
 	PVOID pCallbackArray = NULL;
 	PVOID pSetNotifyRoutine = NULL;
-	PVOID pPatternStart = NULL;
 	PCUCHAR pCallbackArrayPattern = NULL;
 	PUNICODE_STRING pSetNotifyRoutineName = NULL;
 	ULONG patternSize = 0;
@@ -221,14 +220,7 @@ PVOID GetNotifyCallbackArray( ULONG CallbackType ) {
 		pSetNotifyRoutine = GetAddressFromRelative( (PUCHAR)pSetNotifyRoutine + 4 );
 	}
 
-	// Start searching for pattern
-	pPatternStart = SearchPattern( pSetNotifyRoutine, MAX_SEARCH_SIZE, pCallbackArrayPattern, patternSize );
-	if ( !pPatternStart ) {
-		DPRINT( "Get callback array pattern failed.\n" );
-		return NULL;
-	}
-
-	pCallbackArray = GetAddressFromRelative( (PUCHAR)pPatternStart + patternSize );
+	pCallbackArray = GetAddressFromRoutineByPattern( pSetNotifyRoutine, NULL, pCallbackArrayPattern, patternSize );
 
 	return pCallbackArray;
 }
@@ -290,24 +282,10 @@ VOID EnumNotifyCallbacks() {
 }
 
 PVOID GetNotifyMask() {
-	PVOID pSetLoadImageNotifyRoutine = NULL;
 	PVOID pNotifyMask = NULL;
-	PVOID pPatternStart = NULL;
 	ULONG patternSize = sizeof( NotifyMaskPattern );
 
-	pSetLoadImageNotifyRoutine = MmGetSystemRoutineAddress( &uPsSetLoadImageNotifyRoutine );
-	if ( !pSetLoadImageNotifyRoutine ) {
-		DPRINT( "Get address of PsSetLoadImageNotifyRoutine failed.\n" );
-		return NULL;
-	}
-
-	pPatternStart = SearchPattern( pSetLoadImageNotifyRoutine, MAX_SEARCH_SIZE, NotifyMaskPattern, patternSize );
-	if ( !pPatternStart ) {
-		DPRINT( "Get notify mask pattern failed.\n" );
-		return NULL;
-	}
-
-	pNotifyMask = GetAddressFromRelative( (PUCHAR)pPatternStart + patternSize );
+	pNotifyMask = GetAddressFromRoutineByPattern( NULL, &uPsSetLoadImageNotifyRoutine, NotifyMaskPattern, patternSize );
 	return pNotifyMask;
 }
 
@@ -575,23 +553,10 @@ VOID TestRegistryEvents() {
 
 PVOID GetCmCallbackList() {
 	PVOID pCmCallbackList = NULL;
-	PVOID pCmUnregisterCallbacks = NULL;
-	PVOID pPatternStart = NULL;
-	ULONG_PTR patternSize = sizeof( CmCallbackListPattern );
+	ULONG patternSize = sizeof( CmCallbackListPattern );
 	DbgBreakPoint();
-	pCmUnregisterCallbacks = MmGetSystemRoutineAddress( &uNameCmUnregisterCallbacks );
-	if ( !pCmUnregisterCallbacks ) {
-		DPRINT( "Get address of %wZ failed.\n", uNameCmUnregisterCallbacks );
-		return NULL;
-	}
 
-	pPatternStart = SearchPattern( pCmUnregisterCallbacks, MAX_SEARCH_SIZE, CmCallbackListPattern, patternSize );
-	if ( !pPatternStart ) {
-		DPRINT( "Search CmCallbackList pattern failed.\n" );
-		return NULL;
-	}
-
-	pCmCallbackList = GetAddressFromRelative( (PUCHAR)pPatternStart + patternSize );
+	pCmCallbackList = GetAddressFromRoutineByPattern( NULL, &uNameCmUnregisterCallbacks, CmCallbackListPattern, patternSize );
 
 	return pCmCallbackList;
 

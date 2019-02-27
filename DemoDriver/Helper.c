@@ -277,7 +277,38 @@ PVOID SearchPattern( PVOID Base, ULONG_PTR MaxSize, PCUCHAR Pattern, ULONG_PTR P
 // Calculate the absolute address from relative offset in instructions like jmp,call,etc.
 //
 PVOID GetAddressFromRelative( PVOID pRelativeOffset ) {
-	/*LONG relativeOffset = *(PLONG)pRelativeOffset;
-	return (PVOID)( (LONG_PTR)relativeOffset + (LONG_PTR)( (PUCHAR)pRelativeOffset + 4 ) );*/
 	return (PVOID)( *(PLONG)pRelativeOffset + (LONG_PTR)( (PUCHAR)pRelativeOffset + 4 ) );
+}
+
+//
+// Get symbol address from system routine.
+// Generally we get the relative address of the symbol 
+// by searching the pattern (pattern are several bytes behind the relative address)
+// and return the ABSOLUTE ADDRESS.
+// Just need to provide either base address of the routine or the routine's name if can got from MmGetSystemRoutineAddress.
+//
+PVOID GetAddressFromRoutineByPattern( PVOID RoutineBase, PUNICODE_STRING RoutineName, PCUCHAR Pattern, ULONG PatternSize ) {
+	PVOID searchBase = NULL;
+	PVOID pPatternStart = NULL;
+	PVOID pResult = NULL;
+
+	if ( RoutineBase )
+		searchBase = RoutineBase;
+	else
+		searchBase = MmGetSystemRoutineAddress( RoutineName );
+
+	DbgBreakPoint();
+	if ( !searchBase ) {
+		DPRINT( "Invalid routine parameters.\n" );
+		return NULL;
+	}
+
+	pPatternStart = SearchPattern( searchBase, MAX_SEARCH_SIZE, Pattern, PatternSize );
+	if ( !pPatternStart ) {
+		DPRINT( "Search pattern in routine  failed.\n");
+		return NULL;
+	}
+
+	pResult = GetAddressFromRelative( (PUCHAR)pPatternStart + PatternSize );
+	return pResult;
 }

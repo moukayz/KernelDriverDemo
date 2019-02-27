@@ -157,26 +157,17 @@ NTSTATUS EnumThreadApc( PETHREAD Thread ) {
 }
 
 PVOID GetKernelBase2( PULONG NtosSize ) {
-	PVOID pMmGetSystemRoutineAddress = NULL;
 	PVOID* pNtosBase = NULL;
-	PVOID pPatternStart = NULL;
 	ULONG patternSize = sizeof( NtosBasePattern );
 	PIMAGE_NT_HEADERS pNtosHeader = NULL;
 
 	DbgBreakPoint();
-	pMmGetSystemRoutineAddress = MmGetSystemRoutineAddress( &uNameMmGetSystemRoutineAddress );
-	if ( !pMmGetSystemRoutineAddress ) {
-		DPRINT( "Get address of MmGetSystemRoutineAddress failed.\n" );
+	pNtosBase = GetAddressFromRoutineByPattern( NULL, &uNameMmGetSystemRoutineAddress, NtosBasePattern, patternSize );
+	if ( !pNtosBase ) {
+		DPRINT( "Get pointer to Ntos base failed.\n" );
 		return NULL;
 	}
 
-	pPatternStart = SearchPattern( pMmGetSystemRoutineAddress, MAX_SEARCH_SIZE, NtosBasePattern, patternSize );
-	if ( !pPatternStart ) {
-		DPRINT( "NtosBase pattern not found!.\n" );
-		return NULL;
-	}
-
-	pNtosBase = GetAddressFromRelative( (PUCHAR)pPatternStart + patternSize );
 	pNtosHeader = RtlImageNtHeader( *pNtosBase );
 	if ( !pNtosHeader ) {
 		DPRINT( "Bad ntos base, cannot get nt headers.\n" );

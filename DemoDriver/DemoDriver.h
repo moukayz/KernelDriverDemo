@@ -54,3 +54,5 @@ PVOID GetKernelBase( PULONG pImageSize );
 PVOID SearchPattern( PVOID Base, ULONG_PTR MaxSize, PCUCHAR Pattern, ULONG_PTR PatternSize );
 
 PVOID GetAddressFromRelative( PVOID pRelativeOffset );
+
+PVOID GetAddressFromRoutineByPattern( PVOID RoutineBase, PUNICODE_STRING RoutineName, PCUCHAR Pattern, ULONG PatternSize );
