@@ -24,6 +24,22 @@
 	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "[ %d-%s ]: ", __LINE__, __FUNCTION__); \
 	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, format, __VA_ARGS__)	
 
+#define ABSOLUTE(wait) (wait)
+
+#define RELATIVE(wait) (-(wait))
+
+#define NANOSECONDS(nanos) \
+(((signed __int64)(nanos)) / 100L)
+
+#define MICROSECONDS(micros) \
+(((signed __int64)(micros)) * NANOSECONDS(1000L))
+
+#define MILLISECONDS(milli) \
+(((signed __int64)(milli)) * MICROSECONDS(1000L))
+
+#define SECONDS(seconds) \
+(((signed __int64)(seconds)) * MILLISECONDS(1000L))
+
 #pragma warning(disable:4189)
 #pragma warning(disable:4100)
 #pragma warning(disable:4200)

@@ -22,6 +22,7 @@ PVOID pDriverObject = NULL;
 #pragma alloc_text (PAGE, DriverUnload)
 #endif
 
+
 VOID DriverTest() {
 	// TEST
 
@@ -40,13 +41,13 @@ VOID DriverTest() {
 	InjectByApc( &injectInfo );*/
 
 	// Enum CreateProcess/CreateThread/LoadImage notify routine
-	TestInstallNotifyCallbacks();
+	//TestInstallNotifyCallbacks();
 	//TestRegisterObCallbacks();
 	//TestRegisterCmCallbacks();
 	//TestRegistryEvents();
 	//EnumCmCallbacks();
 	//EnumObCallbacks();
-	EnumNotifyCallbacks();
+	//EnumNotifyCallbacks();
 	//DisableObCallback(ProcessObjectCallback);
 	//DisableObCallback( ThreadObjectCallback );
 	//GetNotifyMask();
@@ -54,11 +55,13 @@ VOID DriverTest() {
 	//DisableNotifyCallback(ThreadNotifyCallback);
 	//DisableNotifyCallback(ImageNotifyCallback);
 	//GetKernelBase2( NULL );
+	TestSetDpcs();
 
 }
 
 VOID DriverTestClean() {
-	TestRemoveNotifyCallbacks();
+	TestRemoveDpcs();
+	//TestRemoveNotifyCallbacks();
 	//TestUnregisterObCallbacks();
 	//TestUnRegisterCmCallbacks();
 }

@@ -3,6 +3,8 @@
 #include <ntifs.h>
 #include "DemoDriver.h"
 
+#pragma warning(disable:4201)
+
 typedef enum _INJECT_TYPE {
 	ApcInject
 }INJECT_TYPE, *PINJECT_TYPE;
