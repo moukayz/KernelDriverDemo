@@ -23,3 +23,8 @@ VOID EnumProcessorDpcs(PVOID pKRCB);
 VOID TestSetDpcs();
 VOID TestRemoveDpcs();
 
+// 
+// Enum work items
+//
+VOID TestSetWorkItems();
+

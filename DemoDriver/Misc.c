@@ -5,6 +5,8 @@
 #include "Internals.h"
 #include "DemoDriver.h"
 
+extern PDEVICE_OBJECT pDeviceObject;
+
 CONST UCHAR NtosBasePattern[] = { 0x0f, 0x88 ,0xeb ,0xf1, 0x00, 0x00 ,0x48 ,0x8b ,0x54 ,0x24 ,0x28 ,0x48 ,0x8b ,0x0d };
 CONST UCHAR KiProcessorBlockPattern[] = { 0x41,0x5d,0x5e,0x5d,0x5b,0xc3,0x41,0x0f,0xb7,0xc1,0x48,0x8d,0x1d };
 UNICODE_STRING uNameMmGetSystemRoutineAddress = RTL_CONSTANT_STRING(L"MmGetSystemRoutineAddress");
@@ -20,6 +22,11 @@ PKDPC pImportantDpc = NULL;
 PKDPC pTimerDpc = NULL;
 PKDPC pAnotherDpc = NULL;
 PKTIMER pTimer = NULL;
+
+IO_WORKITEM_ROUTINE TestWorkItemRoutine;
+IO_WORKITEM_ROUTINE_EX TestWorkItemRoutineEx;
+PIO_WORKITEM WorkItem = NULL;
+PIO_WORKITEM WorkItemEx = NULL;
 
 NTSTATUS EnumProcessApc(PCWSTR ProcessName) {
 
@@ -180,7 +187,7 @@ PVOID GetKernelBase2(PULONG NtosSize) {
 		DPRINT("Get pointer to Ntos base failed.\n");
 		return NULL;
 	}
-
+	
 	pNtosHeader = RtlImageNtHeader(*pNtosBase);
 	if (!pNtosHeader) {
 		DPRINT("Bad ntos base, cannot get nt headers.\n");
@@ -379,4 +386,53 @@ VOID TestRemoveDpcs() {
 	KeRemoveQueueDpc(pNormalDpc);
 	KeRemoveQueueDpc(pImportantDpc);
 	KeRemoveQueueDpc(pAnotherDpc);
+}
+
+/*
+DemoDriver!TestWorkItemRoutine+0x1a
+nt!IopProcessWorkItem+0x23
+nt!ExpWorkerThread+0x111
+nt!PspSystemThreadStartup+0x5a
+nt!KiStartSystemThread+0x16
+*/
+VOID TestWorkItemRoutine(
+	_In_ PDEVICE_OBJECT DeviceObject,
+	_In_opt_ PVOID Context) {
+	DbgBreakPoint();
+	IoFreeWorkItem( WorkItem );
+	PrintLog( "Normal WorkItem Routine called.\n" );
+}
+
+/*
+DemoDriver!TestWorkItemRoutineEx+0x1f
+nt!IopProcessWorkItem+0x3d
+nt!ExpWorkerThread+0x111
+nt!PspSystemThreadStartup+0x5a
+nt!KiStartSystemThread+0x16
+*/
+VOID TestWorkItemRoutineEx(
+	_In_ PVOID IoObject,
+	_In_opt_ PVOID Context,
+	_In_ PIO_WORKITEM IoWorkItem ) {
+	DbgBreakPoint();
+	IoFreeWorkItem( WorkItemEx );
+	PrintLog( "Ex WorkItem Routine called.\n" );
+
+}
+
+VOID TestSetWorkItems() {
+	DbgBreakPoint();
+	WorkItem = IoAllocateWorkItem( pDeviceObject );
+	if ( !WorkItem ) {
+		DPRINT( "Cannot allocate work item.\n" );
+		return;
+	}
+	IoQueueWorkItem( WorkItem, TestWorkItemRoutine, DelayedWorkQueue, NULL );
+
+	WorkItemEx = IoAllocateWorkItem( pDeviceObject );
+	if ( !WorkItemEx ) {
+		DPRINT( "Cannot allocate EX work item.\n" );
+		return;
+	}
+	IoQueueWorkItemEx( WorkItemEx, TestWorkItemRoutineEx, DelayedWorkQueue, NULL );
 }

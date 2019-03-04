@@ -14,6 +14,7 @@ DRIVER_DISPATCH		DriverDispatch;
 BOOLEAN CheckOsVersion();
 
 PVOID pDriverObject = NULL;
+PVOID pDeviceObject = NULL;
 
 #define DLL_PATH L"C:\\Users\\MOUKA\\Desktop\\TestDll.dll"
 
@@ -55,12 +56,14 @@ VOID DriverTest() {
 	//DisableNotifyCallback(ThreadNotifyCallback);
 	//DisableNotifyCallback(ImageNotifyCallback);
 	//GetKernelBase2( NULL );
-	TestSetDpcs();
+	//TestSetDpcs();
+
+	TestSetWorkItems();
 
 }
 
 VOID DriverTestClean() {
-	TestRemoveDpcs();
+	//TestRemoveDpcs();
 	//TestRemoveNotifyCallbacks();
 	//TestUnregisterObCallbacks();
 	//TestUnRegisterCmCallbacks();
@@ -105,6 +108,7 @@ NTSTATUS DriverEntry(
 
 	deviceObject->Flags |= DO_BUFFERED_IO;
 	pDriverObject = DriverObject;
+	pDeviceObject = deviceObject;
 
 	DriverTest();
 
@@ -137,13 +141,9 @@ BOOLEAN CheckOsVersion() {
 	VER_SET_CONDITION( conditionMaskLow, VER_SERVICEPACKMAJOR, VER_LESS_EQUAL );
 	VER_SET_CONDITION( conditionMaskLow, VER_SERVICEPACKMINOR, VER_LESS_EQUAL );
 
-	if ( RtlVerifyVersionInfo( &osVersionLow, typeMask, conditionMaskLow ) &&
-		RtlVerifyVersionInfo( &osVersionHigh, typeMask, conditionMaskHigh ) ) {
-		DbgBreakPoint();
-		return TRUE;
-	}
+	return  RtlVerifyVersionInfo( &osVersionLow, typeMask, conditionMaskLow ) &&
+			RtlVerifyVersionInfo( &osVersionHigh, typeMask, conditionMaskHigh );
 
-	return FALSE;
 
 }
 
